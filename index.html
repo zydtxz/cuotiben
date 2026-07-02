@@ -1,0 +1,4418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <title>错题本 - 学生错题整理工具</title>
+    <!-- Tesseract.js OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-color: #FFF8E7;
+            --card-bg: #FFFEF9;
+            --border-color: #D4C4A8;
+            --primary-color: #4A4A4A;
+            --accent-red: #E74C3C;
+            --accent-green: #27AE60;
+            --accent-blue: #3498DB;
+            --accent-gold: #F39C12;
+            --toolbar-bg: #F5F0E6;
+            --touch-target: 48px;
+        }
+
+        html, body {
+            touch-action: manipulation;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "HarmonyOS Sans SC", "MiSans", sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 31px,
+                    #E8DCC8 31px,
+                    #E8DCC8 32px
+                );
+            min-height: 100vh;
+            color: var(--primary-color);
+            font-size: 16px;
+        }
+
+        /* 工具栏 - 平板优化 */
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--toolbar-bg);
+            border-bottom: 2px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            z-index: 1000;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            min-height: 64px;
+        }
+
+        .toolbar-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #8B7355;
+            margin-right: 10px;
+        }
+
+        .toolbar-btn {
+            padding: 12px 20px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: var(--touch-target);
+            min-width: var(--touch-target);
+            justify-content: center;
+        }
+
+        .toolbar-btn:hover {
+            background: #EDE5D5;
+            border-color: #B8A88A;
+        }
+
+        .toolbar-btn:active {
+            transform: scale(0.97);
+            background: #DDD5C5;
+        }
+
+        .toolbar-btn.primary {
+            background: linear-gradient(135deg, #8B7355, #6B5344);
+            color: white;
+            border-color: #6B5344;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+        }
+
+        .toolbar-btn.primary:hover {
+            background: linear-gradient(135deg, #7A6348, #5A4338);
+        }
+
+        .stats-info {
+            margin-left: auto;
+            padding: 10px 18px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            font-size: 0.95em;
+            border: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        /* 筛选区域 - 平板优化 */
+        .filter-bar {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            right: 0;
+            background: rgba(255,248,231,0.97);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            z-index: 999;
+        }
+
+        .filter-bar select, .filter-bar input {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            font-size: 1em;
+            min-height: var(--touch-target);
+        }
+
+        .filter-bar label {
+            font-size: 1em;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        /* 主布局 */
+        .main-container {
+            display: flex;
+            margin-top: 130px;
+            min-height: calc(100vh - 130px);
+        }
+
+        /* 侧边栏 - 平板优化 */
+        .sidebar {
+            width: 300px;
+            min-width: 300px;
+            background: var(--toolbar-bg);
+            border-right: 2px solid var(--border-color);
+            height: calc(100vh - 130px);
+            overflow-y: auto;
+            position: fixed;
+            left: 0;
+            top: 130px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .sidebar-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: bold;
+            background: #EDE5D5;
+            font-size: 1.1em;
+        }
+
+        .error-list {
+            padding: 12px;
+        }
+
+        .error-card-preview {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .error-card-preview:hover {
+            border-color: #B8A88A;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        }
+
+        .error-card-preview:active {
+            transform: scale(0.98);
+        }
+
+        .error-card-preview.active {
+            border-color: #8B7355;
+            border-width: 2px;
+            background: #FFF9EE;
+        }
+
+        .error-card-preview .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .error-card-preview .preview-subject {
+            font-weight: bold;
+            color: #8B7355;
+            font-size: 1em;
+        }
+
+        .error-card-preview .preview-date {
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        .error-card-preview .preview-source {
+            font-size: 0.95em;
+            color: #666;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .error-card-preview .preview-stars {
+            color: var(--accent-gold);
+            font-size: 1em;
+        }
+
+        .delete-btn {
+            color: var(--accent-red);
+            cursor: pointer;
+            font-size: 0.95em;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-top: 8px;
+        }
+
+        .delete-btn:hover {
+            background: #FDEDEC;
+        }
+
+        /* 内容区 */
+        .content-area {
+            flex: 1;
+            margin-left: 300px;
+            padding: 24px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 80px 24px;
+            color: #999;
+        }
+
+        .empty-state h2 {
+            font-size: 1.8em;
+            margin-bottom: 16px;
+            color: #B8A88A;
+        }
+
+        .empty-state p {
+            font-size: 1.1em;
+            margin-bottom: 24px;
+        }
+
+        /* 错题卡片 */
+        .error-card {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .error-card-header {
+            background: linear-gradient(135deg, #F5F0E6 0%, #EDE5D5 100%);
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .header-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-field label {
+            font-size: 1em;
+            color: #666;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .header-field input[type="date"],
+        .header-field select,
+        .header-field input[type="text"] {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            font-size: 1em;
+            min-height: var(--touch-target);
+        }
+
+        .header-field input[type="text"] {
+            width: 160px;
+        }
+
+        /* 星级评分 - 平板优化 */
+        .star-rating {
+            display: flex;
+            gap: 4px;
+        }
+
+        .star {
+            cursor: pointer;
+            font-size: 1.5em;
+            color: #DDD;
+            transition: all 0.2s;
+            padding: 4px;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .star:active {
+            transform: scale(1.2);
+        }
+
+        .star.active {
+            color: var(--accent-gold);
+        }
+
+        /* 错因复选框 - 平板优化 */
+        .error-types {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .error-type-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .error-type-checkbox:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .error-type-checkbox input {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+        }
+
+        /* 卡片主体 */
+        .card-body {
+            display: flex;
+            min-height: 500px;
+        }
+
+        .card-column {
+            flex: 1;
+            padding: 20px;
+            min-height: 500px;
+        }
+
+        .card-column:first-child {
+            border-right: 3px dashed var(--border-color);
+        }
+
+        .column-header {
+            font-weight: bold;
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            text-align: center;
+            font-size: 1.15em;
+        }
+
+        .column-header.left {
+            background: linear-gradient(90deg, #FDEBD0, #FCF3CF);
+            color: #B9770E;
+            border: 2px solid #F0B27A;
+        }
+
+        .column-header.right {
+            background: linear-gradient(90deg, #D5F5E3, #D4EFDF);
+            color: #1E8449;
+            border: 2px solid #82E0AA;
+        }
+
+        /* 子区域 */
+        .sub-section {
+            margin-bottom: 24px;
+        }
+
+        .sub-section-title {
+            font-size: 1.05em;
+            color: #666;
+            margin-bottom: 10px;
+            padding-left: 8px;
+            border-left: 4px solid var(--accent-gold);
+            font-weight: 500;
+        }
+
+        .sub-section-title.wrong {
+            border-left-color: var(--accent-red);
+        }
+
+        .sub-section-title.analysis {
+            border-left-color: var(--accent-green);
+        }
+
+        .sub-section-title.correct {
+            border-left-color: var(--accent-blue);
+        }
+
+        /* Canvas容器 - 核心优化 */
+        .canvas-container {
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            background: white;
+            position: relative;
+            overflow: visible;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .canvas-container canvas {
+            display: block;
+            width: 100%;
+            min-height: 350px;
+            cursor: crosshair;
+            touch-action: none;
+            outline: none;
+        }
+
+        /* 错因分析/正确解答区域也撑满 */
+        .card-column .canvas-container canvas {
+            min-height: 350px;
+        }
+
+        .canvas-area {
+            position: relative;
+        }
+
+        /* 符号覆盖层 */
+        .symbols-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            overflow: visible;
+        }
+
+        .draggable-symbol {
+            position: absolute;
+            pointer-events: auto;
+            cursor: move;
+            user-select: none;
+            padding: 4px 8px;
+            border: 2px dashed rgba(52, 152, 219, 0.6);
+            border-radius: 6px;
+            background: rgba(52, 152, 219, 0.08);
+            touch-action: none;
+            line-height: 1.2;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .draggable-symbol:active {
+            opacity: 0.8;
+        }
+
+        .draggable-symbol .sym-delete {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 22px;
+            height: 22px;
+            background: #E74C3C;
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            padding: 0;
+            pointer-events: auto;
+            z-index: 11;
+        }
+
+        .draggable-symbol .sym-resize {
+            position: absolute;
+            bottom: -8px;
+            right: -8px;
+            width: 20px;
+            height: 20px;
+            background: #3498DB;
+            border: 2px solid white;
+            border-radius: 4px;
+            cursor: nwse-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            pointer-events: auto;
+            z-index: 11;
+        }
+
+        .bake-btn {
+            background: #27AE60 !important;
+            color: white !important;
+            border-color: #219a52 !important;
+            display: none;
+        }
+
+        .bake-btn.show {
+            display: flex;
+        }
+
+        /* Canvas工具栏 - 平板优化 */
+        .canvas-tools {
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            background: linear-gradient(180deg, #F8F6F2, #F0EDE7);
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .canvas-tools button {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 500;
+            transition: all 0.15s;
+            min-height: 36px;
+            white-space: nowrap;
+        }
+
+        .canvas-tools button:hover {
+            background: #EDE5D5;
+        }
+
+        .canvas-tools button:active {
+            transform: scale(0.95);
+            background: #DDD5C5;
+        }
+
+        .canvas-tools button.active {
+            background: linear-gradient(135deg, #8B7355, #6B5344);
+            color: white;
+            border-color: #6B5344;
+        }
+
+        .canvas-tools .color-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #DDD;
+            padding: 0;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .canvas-tools .color-btn.black { background: #1a1a1a; }
+        .canvas-tools .color-btn.red { background: var(--accent-red); }
+        .canvas-tools .color-btn.blue { background: var(--accent-blue); }
+        .canvas-tools .color-btn.green { background: var(--accent-green); }
+        .canvas-tools .color-btn.orange { background: #E67E22; }
+        .canvas-tools .color-btn.purple { background: #8E44AD; }
+        .canvas-tools .color-btn.gray { background: #7F8C8D; }
+        .canvas-tools .color-btn.brown { background: #8B4513; }
+        .canvas-tools .color-btn.pink { background: #E91E8C; }
+
+        /* 符号面板 */
+        .symbol-panel {
+            display: none;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 8px;
+            background: #F5F0E6;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 6px;
+            max-width: 100%;
+        }
+        .symbol-panel.open { display: flex; }
+        .symbol-btn {
+            width: 44px;
+            height: 44px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            border-radius: 8px;
+            font-size: 1.3em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .symbol-btn:active { transform: scale(0.92); background: #EDE5D5; }
+        .symbol-toggle {
+            padding: 8px 14px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+            min-height: var(--touch-target);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .symbol-toggle:active { background: #EDE5D5; }
+
+        .canvas-tools .color-btn.active {
+            border-color: #333;
+            box-shadow: 0 0 0 3px white, 0 0 0 6px #333;
+            transform: scale(1.1);
+        }
+
+        .canvas-tools .size-slider {
+            width: 100px;
+            height: 8px;
+            cursor: pointer;
+            -webkit-appearance: none;
+            background: #DDD;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .canvas-tools .size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #8B7355;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .canvas-tools .size-label {
+            font-size: 0.95em;
+            color: #666;
+            min-width: 45px;
+        }
+
+        /* 图片上传区 */
+        .image-upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 10px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #FAFAF8;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-upload-area:hover {
+            border-color: #B8A88A;
+            background: #FFF9EE;
+        }
+
+        .image-upload-area:active {
+            transform: scale(0.98);
+        }
+
+        .image-upload-area img {
+            max-width: 100%;
+            max-height: 220px;
+            border-radius: 8px;
+        }
+
+        .image-upload-area input[type="file"] {
+            display: none;
+        }
+
+        .image-upload-area .upload-text {
+            color: #999;
+            font-size: 1em;
+        }
+
+        /* 文本输入区 */
+        .text-input-area {
+            width: 100%;
+            min-height: 120px;
+            padding: 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 1.05em;
+            font-family: inherit;
+            resize: vertical;
+            background: white;
+            line-height: 1.6;
+        }
+
+        .text-input-area:focus {
+            outline: none;
+            border-color: #B8A88A;
+            box-shadow: 0 0 0 3px rgba(139,115,85,0.15);
+        }
+
+        /* 图片预览区 */
+        .image-preview-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .image-preview-container img {
+            max-width: 100%;
+            max-height: 220px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .image-preview-container .remove-image {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent-red);
+            color: white;
+            border: 2px solid white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+        }
+
+        /* 折叠功能 */
+        .card-toggle {
+            cursor: pointer;
+            padding: 10px 16px;
+            background: #EDE5D5;
+            border-radius: 8px;
+            font-size: 0.95em;
+            margin-left: auto;
+            min-height: var(--touch-target);
+            display: flex;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .card-toggle:hover {
+            background: #DDD5C5;
+        }
+
+        .card-toggle:active {
+            transform: scale(0.95);
+        }
+
+        .error-card.collapsed .card-body {
+            display: none;
+        }
+
+        /* 隐藏文件输入 */
+        .hidden-input {
+            display: none;
+        }
+
+        /* ========== 图片调整弹窗 ========== */
+        .img-adjust-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .img-adjust-modal .modal-header {
+            color: #fff;
+            font-size: 18px;
+            padding: 12px 20px;
+            width: 100%;
+            text-align: center;
+            background: rgba(0,0,0,0.5);
+        }
+        .img-adjust-modal .viewport {
+            position: relative;
+            width: 80vw;
+            height: 60vh;
+            border: 3px solid #F39C12;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            touch-action: none;
+        }
+        .img-adjust-modal .viewport img {
+            position: absolute;
+            transform-origin: 0 0;
+            cursor: grab;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        .img-adjust-modal .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 14px;
+            background: rgba(0,0,0,0.6);
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .img-adjust-modal .controls button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .img-adjust-modal .controls .btn-confirm {
+            background: #27AE60;
+            color: #fff;
+        }
+        .img-adjust-modal .controls .btn-cancel {
+            background: #888;
+            color: #fff;
+        }
+        .img-adjust-modal .controls .zoom-slider {
+            width: 160px;
+            accent-color: #F39C12;
+        }
+        .img-adjust-modal .zoom-label {
+            color: #F39C12;
+            font-size: 14px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        /* ========== OCR 识别结果弹窗 ========== */
+        .ocr-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ocr-modal .ocr-content {
+            background: #fff;
+            border-radius: 12px;
+            width: 85vw;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        .ocr-modal .ocr-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .ocr-modal .ocr-header .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .ocr-modal .ocr-body {
+            padding: 16px 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .ocr-modal .ocr-loading {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+        .ocr-modal .ocr-loading .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #eee;
+            border-top-color: #F39C12;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .ocr-modal .ocr-text {
+            width: 100%;
+            min-height: 150px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 15px;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .ocr-modal .ocr-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .ocr-modal .ocr-footer button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .ocr-modal .ocr-footer .btn-copy {
+            background: #3498DB;
+            color: #fff;
+        }
+        .ocr-modal .ocr-footer .btn-close {
+            background: #eee;
+            color: #333;
+        }
+
+        /* 响应式设计 - 平板横屏优化 */
+        @media (max-width: 1400px) {
+            .sidebar {
+                width: 280px;
+                min-width: 280px;
+            }
+            .content-area {
+                margin-left: 280px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .card-body {
+                flex-direction: column;
+            }
+            .card-column:first-child {
+                border-right: none;
+                border-bottom: 3px dashed var(--border-color);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                width: 260px;
+                min-width: 260px;
+            }
+            .content-area {
+                margin-left: 260px;
+            }
+            .filter-bar {
+                gap: 10px;
+            }
+            .error-card-header {
+                padding: 14px 16px;
+            }
+            .header-field input[type="text"] {
+                width: 130px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .content-area {
+                margin-left: 0;
+            }
+            .toolbar {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .toolbar-title {
+                display: none;
+            }
+            .toolbar-btn {
+                padding: 10px 14px;
+                font-size: 0.95em;
+            }
+            .stats-info {
+                margin-left: 0;
+                font-size: 0.85em;
+                padding: 8px 12px;
+            }
+            .filter-bar {
+                top: 56px;
+            }
+            .main-container {
+                margin-top: 140px;
+            }
+            .error-card-header {
+                padding: 12px;
+                gap: 12px;
+            }
+            .header-field {
+                width: 100%;
+            }
+            .header-field input[type="text"] {
+                width: 100%;
+                flex: 1;
+            }
+            .star-rating {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* 打印样式 */
+        @media print {
+            body {
+                background: white;
+                background-image: none;
+            }
+            
+            .toolbar, .filter-bar, .sidebar, .card-toggle {
+                display: none !important;
+            }
+            
+            .main-container {
+                margin-top: 0;
+            }
+            
+            .content-area {
+                margin-left: 0;
+                padding: 0;
+            }
+            
+            .error-card {
+                box-shadow: none;
+                border: 1px solid #CCC;
+                page-break-after: always;
+                page-break-inside: avoid;
+                margin-bottom: 30px;
+            }
+            
+            .error-card:last-child {
+                page-break-after: auto;
+            }
+            
+            .card-body {
+                display: flex !important;
+            }
+            
+            .card-column {
+                min-height: auto;
+                padding: 15px;
+            }
+            
+            .card-column:first-child {
+                border-right: 1px solid #CCC;
+            }
+            
+            .canvas-container canvas {
+                min-height: auto;
+            }
+            
+            .canvas-tools {
+                display: none !important;
+            }
+            
+            .canvas-container {
+                border: 1px solid #CCC;
+            }
+            
+            .column-header {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .error-card-header {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            @page {
+                size: A4;
+                margin: 15mm;
+            }
+        }
+
+        /* 高对比度模式支持 */
+        @media (prefers-contrast: high) {
+            .toolbar-btn, .canvas-tools button {
+                border-width: 2px;
+            }
+        }
+
+        /* 减少动画 */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+        
+        /* 图形类型切换按钮 */
+        .canvas-tools button.shape-toggle-btn {
+            background: #27ae60;
+            color: white;
+            min-width: 80px;
+        }
+        .canvas-tools button.shape-toggle-btn:hover {
+            background: #219a52;
+        }
+        .canvas-tools button.shape-toggle-btn .shape-type-label {
+            font-size: 11px;
+            margin-left: 2px;
+        }
+        
+        /* 工具桶按钮 */
+        .canvas-tools button.tool-bucket-btn {
+            background: #e74c3c;
+            color: white;
+            font-weight: bold;
+            position: relative;
+        }
+        .canvas-tools button.tool-bucket-btn:hover {
+            background: #c0392b;
+        }
+        
+        /* 工具面板 */
+        .tool-panel {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 12px;
+            width: 320px;
+        }
+        .tool-panel.show {
+            display: block;
+        }
+        .tool-category {
+            margin-bottom: 12px;
+        }
+        .tool-category:last-child {
+            margin-bottom: 0;
+        }
+        .tool-category-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #eee;
+        }
+        .tool-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .tool-grid button {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .tool-grid button:hover {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .tool-grid button.active {
+            background: #2196f3;
+            color: white;
+            border-color: #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <span class="toolbar-title">📒 错题本</span>
+        <button class="toolbar-btn primary" onclick="addNewError()">
+            ➕ 添加新错题
+        </button>
+        <button class="toolbar-btn" onclick="exportPDF()">
+            🖨️ 导出PDF
+        </button>
+        <button class="toolbar-btn" onclick="document.getElementById('importFile').click()">
+            📂 导入数据
+        </button>
+        <button class="toolbar-btn" onclick="exportJSON()">
+            💾 导出数据
+        </button>
+        <button class="toolbar-btn" onclick="backupData()">
+            📦 备份
+        </button>
+        <input type="file" id="importFile" class="hidden-input" accept=".json" onchange="importJSON(event)">
+        <div class="stats-info" id="statsInfo">
+            错题总数：0 | 数学: 0 | 物理: 0 | 英语: 0 | 语文: 0 | 化学: 0 | 生物: 0
+        </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+        <label>筛选：</label>
+        <select id="filterSubject" onchange="applyFilters()">
+            <option value="">全部科目</option>
+            <option value="数学">数学</option>
+            <option value="物理">物理</option>
+            <option value="英语">英语</option>
+            <option value="语文">语文</option>
+            <option value="化学">化学</option>
+            <option value="生物">生物</option>
+        </select>
+        <label>日期从：</label>
+        <input type="date" id="filterDateFrom" onchange="applyFilters()">
+        <label>至：</label>
+        <input type="date" id="filterDateTo" onchange="applyFilters()">
+        <button class="toolbar-btn" onclick="clearFilters()">清除筛选</button>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>📋 错题列表（共 <span id="sidebarCount">0</span> 道）</span>
+                <button onclick="deleteAllErrors()" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">🗑️ 一键清空</button>
+            </div>
+            <div class="error-list" id="errorList">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="content-area" id="contentArea">
+            <div class="empty-state" id="emptyState">
+                <h2>📝 欢迎使用错题本</h2>
+                <p>点击右上角的「添加新错题」开始整理你的错题吧！</p>
+                <button class="toolbar-btn primary" onclick="addNewError()">➕ 添加第一道错题</button>
+            </div>
+            <div id="errorCardsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // 数据存储
+        // ============================================
+        let errorData = [];
+        let currentEditingId = null;
+        const SUBJECTS = ['数学', '物理', '英语', '语文', '化学', '生物', '历史', '地理', '政治'];
+        const ERROR_TYPES = ['概念模糊', '思路错误', '计算错误', '其他原因'];
+
+        // ============================================
+        // 初始化
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromStorage();
+            renderErrorList();
+            updateStats();
+        });
+
+        // localStorage 操作
+        function saveToStorage() {
+            localStorage.setItem('errorBookData', JSON.stringify(errorData));
+            updateStats();
+        }
+
+        function loadFromStorage() {
+            const stored = localStorage.getItem('errorBookData');
+            if (stored) {
+                errorData = JSON.parse(stored);
+            } else {
+                // 示例数据 - 演示用
+                errorData = [
+                    {
+                        id: generateId(),
+                        date: '2026-07-02',
+                        subject: '数学',
+                        source: '四中衔接课第3讲例题',
+                        importance: 4,
+                        error_types: ['思路错误', '计算错误'],
+                        topic: '均值不等式',
+                        question_text: '已知 x>0, y>0, 且 x+2y=1, 求 1/x + 1/y 的最小值。',
+                        question_image: '',
+                        wrong_answer_image: '',
+                        analysis_image: '',
+                        correct_solution_image: '',
+                        created_at: new Date().toISOString()
+                    },
+                    {
+                        id: generateId(),
+                        date: '2026-07-02',
+                        subject: '物理',
+                        source: '四中衔接课板书',
+                        importance: 3,
+                        error_types: ['概念模糊'],
+                        topic: '力的合成与分解',
+                        question_text: '一个物体受到两个力F1=3N和F2=4N的作用，两力夹角为90°，求合力的大小和方向。',
+                        question_image: '',
+                        wrong_answer_image: '',
+                        analysis_image: '',
+                        correct_solution_image: '',
+                        created_at: new Date().toISOString()
+                    },
+                    {
+                        id: generateId(),
+                        date: '2026-07-01',
+                        subject: '英语',
+                        source: '暑假讲义第2讲',
+                        importance: 5,
+                        error_types: ['概念模糊'],
+                        topic: '熟词生义',
+                        question_text: 'The company has been addressing the issue for months. (address的含义)',
+                        question_image: '',
+                        wrong_answer_image: '',
+                        analysis_image: '',
+                        correct_solution_image: '',
+                        created_at: new Date().toISOString()
+                    }
+                ];
+                saveToStorage();
+            }
+        }
+
+        // 手动备份功能
+        function backupData() {
+            if (errorData.length === 0) {
+                alert('暂无数据可备份');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(errorData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            const now = new Date();
+            const timestamp = now.toISOString().split('T')[0] + '_' + 
+                            now.toTimeString().split(' ')[0].replace(/:/g, '');
+            a.download = `错题本_备份_${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('备份成功！文件已保存到下载目录');
+        }
+
+        // 生成唯一ID
+        function generateId() {
+            return 'err_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // ============================================
+        // 错题CRUD操作
+        // ============================================
+        function addNewError() {
+            const newError = {
+                id: generateId(),
+                date: new Date().toISOString().split('T')[0],
+                subject: '数学',
+                source: '',
+                importance: 3,
+                error_types: [],
+                topic: '',
+                question_text: '',
+                question_image: '',
+                wrong_answer_image: '',
+                analysis_image: '',
+                correct_solution_image: '',
+                created_at: new Date().toISOString()
+            };
+            errorData.unshift(newError);
+            saveToStorage();
+            renderErrorList();
+            renderErrorCard(newError.id);
+            scrollToCard(newError.id);
+        }
+
+        function updateError(id, field, value) {
+            const err = errorData.find(e => e.id === id);
+            if (err) {
+                err[field] = value;
+                saveToStorage();
+                if (field === 'subject' || field === 'importance') {
+                    renderErrorList();
+                }
+                updateStats();
+            }
+        }
+
+        function deleteError(id) {
+            const err = errorData.find(e => e.id === id);
+            if (!err) return;
+            
+            // 第一次确认：显示错题详情
+            const confirmMsg = `确定要删除这道错题吗？\n\n` +
+                             `科目：${err.subject}\n` +
+                             `日期：${err.date}\n` +
+                             `来源：${err.source || '无'}\n` +
+                             `知识点：${err.topic || '无'}\n\n` +
+                             `删除后无法恢复，请确认！`;
+            
+            if (confirm(confirmMsg)) {
+                // 第二次确认
+                if (confirm('这是最后确认：真的要删除吗？')) {
+                    // 第三次确认：密码验证
+                    const password = prompt('请输入删除密码：');
+                    if (password === 'delete123') {
+                        errorData = errorData.filter(e => e.id !== id);
+                        saveToStorage();
+                        renderErrorList();
+                        
+                        const card = document.getElementById('card_' + id);
+                        if (card) {
+                            card.remove();
+                        }
+                        
+                        if (currentEditingId === id) {
+                            currentEditingId = null;
+                            if (errorData.length === 0) {
+                                document.getElementById('emptyState').style.display = 'block';
+                            } else {
+                                viewError(errorData[0].id);
+                            }
+                        }
+                        updateStats();
+                        alert('删除成功');
+                    } else if (password !== null) {
+                        alert('密码错误，删除取消');
+                    }
+                }
+            }
+        }
+
+        function deleteAllErrors() {
+            if (errorData.length === 0) {
+                alert('当前没有错题记录');
+                return;
+            }
+            if (!confirm(`确定要清空全部 ${errorData.length} 道错题吗？\n\n此操作不可恢复！`)) return;
+            if (!confirm('最后确认：真的要删除全部错题吗？')) return;
+            const password = prompt('请输入删除密码：');
+            if (password === 'delete123') {
+                errorData = [];
+                saveToStorage();
+                renderErrorList();
+                currentEditingId = null;
+                document.getElementById('errorCardsContainer').innerHTML = '';
+                document.getElementById('emptyState').style.display = 'block';
+                updateStats();
+                alert('已全部清空');
+            } else if (password !== null) {
+                alert('密码错误，删除取消');
+            }
+        }
+
+        function viewError(id) {
+            currentEditingId = id;
+            renderErrorList();
+            renderErrorCard(id);
+            scrollToCard(id);
+        }
+
+        function scrollToCard(id) {
+            const card = document.getElementById('card_' + id);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // ============================================
+        // 列表渲染
+        // ============================================
+        function renderErrorList() {
+            const filteredData = getFilteredData();
+            const listEl = document.getElementById('errorList');
+            const sidebarCount = document.getElementById('sidebarCount');
+            sidebarCount.textContent = filteredData.length;
+
+            if (filteredData.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center;color:#999;padding:24px;font-size:1em;">暂无错题</p>';
+                return;
+            }
+
+            listEl.innerHTML = filteredData.map(err => `
+                <div class="error-card-preview ${err.id === currentEditingId ? 'active' : ''}" 
+                     onclick="viewError('${err.id}')">
+                    <div class="preview-header">
+                        <span class="preview-subject">${err.subject}</span>
+                        <span class="preview-date">${err.date}</span>
+                    </div>
+                    <div class="preview-source">${err.source || '无来源'}</div>
+                    <div class="preview-stars">${'★'.repeat(err.importance)}${'☆'.repeat(5-err.importance)}</div>
+                    <span class="delete-btn" onclick="event.stopPropagation();deleteError('${err.id}')">🗑️ 删除</span>
+                </div>
+            `).join('');
+        }
+
+        function getFilteredData() {
+            const subject = document.getElementById('filterSubject').value;
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = document.getElementById('filterDateTo').value;
+
+            return errorData.filter(err => {
+                if (subject && err.subject !== subject) return false;
+                if (dateFrom && err.date < dateFrom) return false;
+                if (dateTo && err.date > dateTo) return false;
+                return true;
+            });
+        }
+
+        function applyFilters() {
+            renderErrorList();
+        }
+
+        function clearFilters() {
+            document.getElementById('filterSubject').value = '';
+            document.getElementById('filterDateFrom').value = '';
+            document.getElementById('filterDateTo').value = '';
+            renderErrorList();
+        }
+
+        // ============================================
+        // 卡片渲染
+        // ============================================
+        function renderErrorCard(id) {
+            const err = errorData.find(e => e.id === id);
+            if (!err) return;
+
+            document.getElementById('emptyState').style.display = 'none';
+            const container = document.getElementById('errorCardsContainer');
+            
+            let existingCard = document.getElementById('card_' + id);
+            if (existingCard) {
+                existingCard.remove();
+            }
+
+            const card = document.createElement('div');
+            card.className = 'error-card';
+            card.id = 'card_' + id;
+
+            card.innerHTML = `
+                <div class="error-card-header">
+                    <div class="header-field">
+                        <label>日期：</label>
+                        <input type="date" value="${err.date}" 
+                               onchange="updateError('${id}', 'date', this.value)">
+                    </div>
+                    <div class="header-field">
+                        <label>科目：</label>
+                        <select onchange="updateError('${id}', 'subject', this.value)">
+                            ${SUBJECTS.map(s => `<option value="${s}" ${err.subject === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="header-field">
+                        <label>来源：</label>
+                        <input type="text" value="${err.source}" placeholder="如：课本P45"
+                               onchange="updateError('${id}', 'source', this.value)">
+                    </div>
+                    <div class="header-field">
+                        <label>重要程度：</label>
+                        <div class="star-rating" id="stars_${id}">
+                            ${[1,2,3,4,5].map(i => `<span class="star ${i <= err.importance ? 'active' : ''}" 
+                                onclick="updateError('${id}', 'importance', ${i})">★</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="header-field">
+                        <label>错因：</label>
+                        <div class="error-types">
+                            ${ERROR_TYPES.map(type => `
+                                <label class="error-type-checkbox">
+                                    <input type="checkbox" 
+                                           ${err.error_types.includes(type) ? 'checked' : ''}
+                                           onchange="toggleErrorType('${id}', '${type}', this.checked)">
+                                    ${type}
+                                </label>
+                            `).join('')}
+                        </div>
+                        ${err.error_types.includes('其他原因') ? `
+                        <input type="text" id="otherReason_${id}" value="${err.other_reason || ''}" 
+                               placeholder="请输入其他错因..." 
+                               style="margin-top:5px;width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;"
+                               onchange="updateError('${id}', 'other_reason', this.value)">
+                        ` : ''}
+                    </div>
+                    <div class="header-field">
+                        <label>知识点：</label>
+                        <input type="text" value="${err.topic}" placeholder="输入知识点"
+                               style="width:200px" onchange="updateError('${id}', 'topic', this.value)">
+                    </div>
+                    <div class="card-toggle" onclick="toggleCardCollapse(this)">折叠/展开</div>
+                </div>
+                <div class="card-body">
+                    <!-- 左栏：题目 & 错题 -->
+                    <div class="card-column">
+                        <div class="column-header left">📝 题目 & 错题</div>
+                        
+                        <div class="sub-section">
+                            <div class="sub-section-title wrong">❌ 错题区（拍照上传题目，直接在图上书写）</div>
+                            <div class="canvas-container" id="wrong_${id}" style="position:relative;">
+                                <div class="canvas-tools" style="background:transparent;border:none;padding:4px 0;box-shadow:none;">
+                                    <button onclick="document.getElementById('qimg_file_${id}').click()">📷 上传题目</button>
+                                    <input type="file" id="qimg_file_${id}" accept="image/*" style="display:none"
+                                           onchange="handleCanvasBgUpload(this, '${id}')">
+                                    <button onclick="recognizeQuestion('${id}')" id="ocr_btn_${id}" style="display:none;">🔍 原题识别</button>
+                                    <button class="active" onclick="setPen(this, 'wrong_${id}')">✏️ 画笔</button>
+                                    <button onclick="setEraser(this, 'wrong_${id}')">🧹 橡皮</button>
+                                    <button onclick="undoCanvas('wrong_${id}')">↶ 撤销</button>
+                                    <button onclick="clearCanvas('wrong_${id}')">🗑️ 清空</button>
+                                    <input type="range" class="size-slider" min="1" max="20" value="3" 
+                                           id="slider_wrong_${id}"
+                                           onchange="setStrokeWidth(this.value, 'wrong_${id}')"
+                                           style="width:60px">
+                                    <span class="size-label"><span id="size_${id}_wrong">3</span>px</span>
+                                </div>
+                                <div class="canvas-area">
+                                    <canvas id="canvas_wrong_${id}"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右栏：解析 & 正解 -->
+                    <div class="card-column">
+                        <div class="column-header right">💡 解析 & 正解</div>
+                        
+                        <div class="sub-section">
+                            <div class="sub-section-title analysis">📋 错因分析（手写）</div>
+                            <div class="canvas-container" id="analysis_${id}" style="position:relative;">
+                                <div class="canvas-tools">
+                                    <button onclick="setEraser(this, 'analysis_${id}')">🧹 橡皮</button>
+                                    <button class="active" onclick="setPen(this, 'analysis_${id}')">✏️ 画笔</button>
+                                    <button class="tool-bucket-btn" onclick="toggleToolPanel('analysis_${id}')">🧰 工具</button>
+                                    <button onclick="toggleLineStyle(this, 'analysis_${id}')">━━━━ 实线</button>
+                                    <div style="margin-left:6px">
+                                        <button class="color-btn black active" onclick="setColor(this, '#1a1a1a', 'analysis_${id}')"></button>
+                                        <button class="color-btn red" onclick="setColor(this, '#E74C3C', 'analysis_${id}')"></button>
+                                        <button class="color-btn blue" onclick="setColor(this, '#3498DB', 'analysis_${id}')"></button>
+                                        <button class="color-btn green" onclick="setColor(this, '#27AE60', 'analysis_${id}')"></button>
+                                        <button class="color-btn orange" onclick="setColor(this, '#E67E22', 'analysis_${id}')"></button>
+                                        <button class="color-btn purple" onclick="setColor(this, '#8E44AD', 'analysis_${id}')"></button>
+                                        <button class="color-btn gray" onclick="setColor(this, '#7F8C8D', 'analysis_${id}')"></button>
+                                    </div>
+                                    <input type="range" class="size-slider" min="1" max="20" value="3" 
+                                           id="slider_analysis_${id}"
+                                           onchange="setStrokeWidth(this.value, 'analysis_${id}')">
+                                    <span class="size-label"><span id="size_${id}_analysis">3</span>px</span>
+                                    <button onclick="undoCanvas('analysis_${id}')">↶ 撤销</button>
+                                    <button onclick="clearCanvas('analysis_${id}')">🗑️ 清空</button>
+                                    <button class="symbol-toggle" onclick="toggleSymbolPanel('analysis_${id}')">📐 符号</button>
+                                    <button class="bake-btn" id="bake_analysis_${id}" onclick="bakeSymbols('analysis_${id}')">✓ 确认放置</button>
+                                </div>
+                                <div class="symbol-panel" id="symbols_analysis_${id}">
+                                    ${['√','≥','≤','±','∞','π','θ','α','β','Δ','∑','∫','∈','⊆','∪','∩','→','←','↑','↓','²','³','ⁿ','½','∠','⊥','∥','≠','≈','∝'].map(s => `<button class="symbol-btn" onclick="insertSymbol('${id}', 'analysis', '${s}')">${s}</button>`).join('')}
+                                </div>
+                                <div class="canvas-area">
+                                    <canvas id="canvas_analysis_${id}"></canvas>
+                                    <div class="symbols-overlay" id="overlay_analysis_${id}"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sub-section">
+                            <div class="sub-section-title correct">✅ 正确解答（手写）</div>
+                            ${err.question_image ? `
+                            <div style="margin-bottom:8px;padding:8px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;">
+                                <div style="font-size:12px;color:#666;margin-bottom:4px;">📷 题目参考：</div>
+                                <img src="${err.question_image}" style="max-width:100%;max-height:150px;border-radius:3px;">
+                            </div>
+                            ` : ''}
+                            <div class="canvas-container" id="correct_${id}" style="position:relative;">
+                                <div class="canvas-tools">
+                                    <button onclick="setEraser(this, 'correct_${id}')">🧹 橡皮</button>
+                                    <button class="active" onclick="setPen(this, 'correct_${id}')">✏️ 画笔</button>
+                                    <button class="tool-bucket-btn" onclick="toggleToolPanel('correct_${id}')">🧰 工具</button>
+                                    <button onclick="toggleLineStyle(this, 'correct_${id}')">━━━━ 实线</button>
+                                    <div style="margin-left:6px">
+                                        <button class="color-btn black active" onclick="setColor(this, '#1a1a1a', 'correct_${id}')"></button>
+                                        <button class="color-btn red" onclick="setColor(this, '#E74C3C', 'correct_${id}')"></button>
+                                        <button class="color-btn blue" onclick="setColor(this, '#3498DB', 'correct_${id}')"></button>
+                                        <button class="color-btn green" onclick="setColor(this, '#27AE60', 'correct_${id}')"></button>
+                                        <button class="color-btn orange" onclick="setColor(this, '#E67E22', 'correct_${id}')"></button>
+                                        <button class="color-btn purple" onclick="setColor(this, '#8E44AD', 'correct_${id}')"></button>
+                                        <button class="color-btn gray" onclick="setColor(this, '#7F8C8D', 'correct_${id}')"></button>
+                                    </div>
+                                    <input type="range" class="size-slider" min="1" max="20" value="3" 
+                                           id="slider_correct_${id}"
+                                           onchange="setStrokeWidth(this.value, 'correct_${id}')">
+                                    <span class="size-label"><span id="size_${id}_correct">3</span>px</span>
+                                    <button onclick="undoCanvas('correct_${id}')">↶ 撤销</button>
+                                    <button onclick="clearCanvas('correct_${id}')">🗑️ 清空</button>
+                                    <button class="symbol-toggle" onclick="toggleSymbolPanel('correct_${id}')">📐 符号</button>
+                                    <button class="bake-btn" id="bake_correct_${id}" onclick="bakeSymbols('correct_${id}')">✓ 确认放置</button>
+                                </div>
+                                <div class="symbol-panel" id="symbols_correct_${id}">
+                                    ${['√','≥','≤','±','∞','π','θ','α','β','Δ','∑','∫','∈','⊆','∪','∩','→','←','↑','↓','²','³','ⁿ','½','∠','⊥','∥','≠','≈','∝'].map(s => `<button class="symbol-btn" onclick="insertSymbol('${id}', 'correct', '${s}')">${s}</button>`).join('')}
+                                </div>
+                                <div class="canvas-area">
+                                    <canvas id="canvas_correct_${id}"></canvas>
+                                    <div class="symbols-overlay" id="overlay_correct_${id}"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.insertBefore(card, container.firstChild);
+            
+            // 初始化Canvas - 延迟确保DOM已渲染
+            setTimeout(() => {
+                initCanvas('wrong_' + id, err.wrong_answer_image, 'wrong', err.question_image);
+                initCanvas('analysis_' + id, err.analysis_image, 'analysis');
+                initCanvas('correct_' + id, err.correct_solution_image, 'correct');
+                
+                // 如果已有题目图片，显示OCR按钮
+                if (err.question_image) {
+                    const ocrBtn = document.getElementById('ocr_btn_' + id);
+                    if (ocrBtn) ocrBtn.style.display = '';
+                }
+            }, 50);
+        }
+
+        // ============================================
+        // 错因切换
+        // ============================================
+        function toggleErrorType(id, type, checked) {
+            const err = errorData.find(e => e.id === id);
+            if (err) {
+                if (checked) {
+                    if (!err.error_types.includes(type)) {
+                        err.error_types.push(type);
+                    }
+                } else {
+                    err.error_types = err.error_types.filter(t => t !== type);
+                }
+                saveToStorage();
+                
+                // 如果是"其他原因"，重新渲染卡片以显示/隐藏输入框
+                if (type === '其他原因') {
+                    renderErrorCard(id);
+                }
+            }
+        }
+
+        // ============================================
+        // 折叠功能
+        // ============================================
+        function toggleCardCollapse(btn) {
+            const card = btn.closest('.error-card');
+            card.classList.toggle('collapsed');
+        }
+
+        // ============================================
+        // 图片处理
+        // ============================================
+        function handleImageUpload(input, id, field) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    updateError(id, field, e.target.result);
+                    renderErrorCard(id);
+                    viewError(id);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleCanvasBgUpload(input, id) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                openImageAdjustModal(dataUrl, id);
+            };
+            reader.readAsDataURL(file);
+            input.value = ''; // 重置input，允许重复上传同一文件
+        }
+
+        // ========== 图片调整弹窗 ==========
+        let adjustState = {
+            img: null,
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            errorId: null,
+            dataUrl: null,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0,
+            pinchDist: 0
+        };
+
+        function openImageAdjustModal(dataUrl, errorId) {
+            // 创建弹窗
+            let modal = document.getElementById('imgAdjustModal');
+            if (modal) modal.remove();
+
+            modal = document.createElement('div');
+            modal.id = 'imgAdjustModal';
+            modal.className = 'img-adjust-modal';
+            modal.innerHTML = `
+                <div class="modal-header">📐 调整图片位置与大小（框内为裁切区域）</div>
+                <div class="viewport" id="adjustViewport">
+                    <img id="adjustImg" src="${dataUrl}" draggable="false">
+                </div>
+                <div class="controls">
+                    <button class="btn-cancel" onclick="closeImageAdjustModal()">取消</button>
+                    <span style="color:#fff;font-size:14px;">🔍</span>
+                    <input type="range" class="zoom-slider" id="zoomSlider" min="10" max="500" value="100"
+                           oninput="adjustZoom(this.value)">
+                    <span class="zoom-label" id="zoomLabel">100%</span>
+                    <button class="btn-confirm" onclick="confirmImageAdjust()">✓ 确认放置</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // 初始化状态
+            const img = document.getElementById('adjustImg');
+            const viewport = document.getElementById('adjustViewport');
+            
+            adjustState = {
+                img: img,
+                scale: 1,
+                offsetX: 0,
+                offsetY: 0,
+                errorId: errorId,
+                dataUrl: dataUrl,
+                isDragging: false,
+                lastX: 0,
+                lastY: 0,
+                pinchDist: 0
+            };
+
+            // 图片加载后初始化位置（居中适配）
+            img.onload = function() {
+                const vpRect = viewport.getBoundingClientRect();
+                const imgW = img.naturalWidth;
+                const imgH = img.naturalHeight;
+                
+                // 初始缩放：让图片适配视口
+                const fitScale = Math.min(vpRect.width / imgW, vpRect.height / imgH);
+                adjustState.scale = fitScale;
+                
+                // 居中
+                const displayW = imgW * fitScale;
+                const displayH = imgH * fitScale;
+                adjustState.offsetX = (vpRect.width - displayW) / 2;
+                adjustState.offsetY = (vpRect.height - displayH) / 2;
+                
+                updateImgTransform();
+                
+                // 更新滑块
+                document.getElementById('zoomSlider').value = Math.round(fitScale * 100);
+                document.getElementById('zoomLabel').textContent = Math.round(fitScale * 100) + '%';
+            };
+
+            // 绑定拖拽和缩放手势
+            bindAdjustGestures(viewport);
+        }
+
+        function updateImgTransform() {
+            const img = adjustState.img;
+            if (!img) return;
+            img.style.transform = `translate(${adjustState.offsetX}px, ${adjustState.offsetY}px) scale(${adjustState.scale})`;
+        }
+
+        function adjustZoom(val) {
+            const viewport = document.getElementById('adjustViewport');
+            const vpRect = viewport.getBoundingClientRect();
+            const oldScale = adjustState.scale;
+            const newScale = val / 100;
+            
+            // 以视口中心为缩放原点
+            const centerX = vpRect.width / 2;
+            const centerY = vpRect.height / 2;
+            
+            adjustState.offsetX = centerX - (centerX - adjustState.offsetX) * (newScale / oldScale);
+            adjustState.offsetY = centerY - (centerY - adjustState.offsetY) * (newScale / oldScale);
+            adjustState.scale = newScale;
+            
+            updateImgTransform();
+            document.getElementById('zoomLabel').textContent = val + '%';
+        }
+
+        function bindAdjustGestures(viewport) {
+            // 鼠标/触摸拖拽
+            viewport.addEventListener('pointerdown', function(e) {
+                if (e.pointerType === 'touch' && e.isPrimary === false) return;
+                adjustState.isDragging = true;
+                adjustState.lastX = e.clientX;
+                adjustState.lastY = e.clientY;
+                viewport.setPointerCapture(e.pointerId);
+                e.preventDefault();
+            });
+
+            viewport.addEventListener('pointermove', function(e) {
+                if (!adjustState.isDragging) return;
+                const dx = e.clientX - adjustState.lastX;
+                const dy = e.clientY - adjustState.lastY;
+                adjustState.offsetX += dx;
+                adjustState.offsetY += dy;
+                adjustState.lastX = e.clientX;
+                adjustState.lastY = e.clientY;
+                updateImgTransform();
+                e.preventDefault();
+            });
+
+            viewport.addEventListener('pointerup', function(e) {
+                adjustState.isDragging = false;
+            });
+
+            // 鼠标滚轮缩放
+            viewport.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const slider = document.getElementById('zoomSlider');
+                let val = parseInt(slider.value);
+                val += e.deltaY > 0 ? -10 : 10;
+                val = Math.max(10, Math.min(500, val));
+                slider.value = val;
+                adjustZoom(val);
+            }, { passive: false });
+
+            // 双指缩放（触屏）
+            let touchCache = [];
+            viewport.addEventListener('touchstart', function(e) {
+                touchCache = Array.from(e.touches);
+                if (touchCache.length === 2) {
+                    adjustState.pinchDist = getPinchDist(touchCache);
+                }
+            }, { passive: true });
+
+            viewport.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const newDist = getPinchDist(Array.from(e.touches));
+                    const ratio = newDist / adjustState.pinchDist;
+                    
+                    const slider = document.getElementById('zoomSlider');
+                    let val = Math.round(parseFloat(slider.value) * ratio);
+                    val = Math.max(10, Math.min(500, val));
+                    slider.value = val;
+                    adjustZoom(val);
+                    
+                    adjustState.pinchDist = newDist;
+                }
+            }, { passive: false });
+        }
+
+        function getPinchDist(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function closeImageAdjustModal() {
+            const modal = document.getElementById('imgAdjustModal');
+            if (modal) modal.remove();
+            adjustState = { img: null, scale: 1, offsetX: 0, offsetY: 0, errorId: null, dataUrl: null, isDragging: false, lastX: 0, lastY: 0, pinchDist: 0 };
+        }
+
+        function confirmImageAdjust() {
+            const viewport = document.getElementById('adjustViewport');
+            const img = adjustState.img;
+            const id = adjustState.errorId;
+            const vpRect = viewport.getBoundingClientRect();
+            
+            // 用canvas裁切出视口内的图片区域
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = vpRect.width;
+            cropCanvas.height = vpRect.height;
+            const cropCtx = cropCanvas.getContext('2d');
+            
+            // 计算图片在视口中的实际位置和大小
+            const imgW = img.naturalWidth * adjustState.scale;
+            const imgH = img.naturalHeight * adjustState.scale;
+            
+            cropCtx.drawImage(img, adjustState.offsetX, adjustState.offsetY, imgW, imgH);
+            
+            // 获取裁切后的dataUrl
+            const croppedDataUrl = cropCanvas.toDataURL('image/png');
+            
+            // 关闭弹窗
+            closeImageAdjustModal();
+            
+            // 设置为canvas背景
+            updateError(id, 'question_image', croppedDataUrl);
+            const container = document.getElementById('wrong_' + id);
+            if (container && container.canvasState) {
+                container.canvasState.bgImageData = croppedDataUrl;
+                container.canvasState.history = [];
+                redrawBackground('wrong_' + id);
+                setTimeout(() => {
+                    const canvas = document.getElementById('canvas_wrong_' + id);
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        const dpr = container.canvasState.dpr;
+                        setTimeout(() => {
+                            ctx.save();
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);
+                            const imgData = canvas.toDataURL('image/png');
+                            ctx.restore();
+                            container.canvasState.history = [imgData];
+                        }, 200);
+                    }
+                }, 100);
+            }
+            saveCanvasImage('wrong_' + id, 'wrong', id);
+            
+            // 显示OCR按钮
+            const ocrBtn = document.getElementById('ocr_btn_' + id);
+            if (ocrBtn) ocrBtn.style.display = '';
+        }
+
+        // ========== OCR 原题识别 ==========
+        function recognizeQuestion(id) {
+            const container = document.getElementById('wrong_' + id);
+            if (!container || !container.canvasState || !container.canvasState.bgImageData) {
+                alert('请先上传题目图片');
+                return;
+            }
+            
+            const dataUrl = container.canvasState.bgImageData;
+            
+            // 创建OCR弹窗
+            let ocrModal = document.getElementById('ocrModal');
+            if (ocrModal) ocrModal.remove();
+            
+            ocrModal = document.createElement('div');
+            ocrModal.id = 'ocrModal';
+            ocrModal.className = 'ocr-modal';
+            ocrModal.innerHTML = `
+                <div class="ocr-content">
+                    <div class="ocr-header">
+                        <span>🔍 原题识别</span>
+                        <button class="close-btn" onclick="closeOcrModal()">×</button>
+                    </div>
+                    <div class="ocr-body">
+                        <div class="ocr-loading" id="ocrLoading">
+                            <div class="spinner"></div>
+                            <div>正在识别题目文字...</div>
+                            <div style="font-size:12px;color:#999;margin-top:8px;">首次加载需下载识别引擎，请耐心等待</div>
+                        </div>
+                        <textarea class="ocr-text" id="ocrText" style="display:none;" placeholder="识别结果将显示在这里，可手动编辑修正"></textarea>
+                    </div>
+                    <div class="ocr-footer" id="ocrFooter" style="display:none;">
+                        <button class="btn-close" onclick="closeOcrModal()">关闭</button>
+                        <button class="btn-copy" onclick="copyOcrText()">📋 复制文字</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(ocrModal);
+            
+            // 执行OCR识别
+            runOCR(dataUrl);
+        }
+
+        async function runOCR(imageData) {
+            try {
+                const result = await Tesseract.recognize(imageData, 'chi_sim+eng', {
+                    logger: m => {
+                        const loading = document.getElementById('ocrLoading');
+                        if (loading && m.status) {
+                            loading.querySelector('div:last-child').textContent = 
+                                m.status + (m.progress ? ` ${Math.round(m.progress * 100)}%` : '');
+                        }
+                    }
+                });
+                
+                const text = result.data.text.trim();
+                
+                // 显示结果
+                const loading = document.getElementById('ocrLoading');
+                const textArea = document.getElementById('ocrText');
+                const footer = document.getElementById('ocrFooter');
+                
+                if (loading) loading.style.display = 'none';
+                if (textArea) {
+                    textArea.style.display = '';
+                    textArea.value = text || '（未识别到文字，请检查图片清晰度）';
+                }
+                if (footer) footer.style.display = '';
+                
+            } catch (err) {
+                console.error('OCR error:', err);
+                const loading = document.getElementById('ocrLoading');
+                if (loading) {
+                    loading.innerHTML = `
+                        <div style="color:#E74C3C;">❌ 识别失败</div>
+                        <div style="font-size:12px;color:#999;margin-top:8px;">${err.message || '请检查网络连接后重试'}</div>
+                    `;
+                }
+                const footer = document.getElementById('ocrFooter');
+                if (footer) footer.style.display = '';
+            }
+        }
+
+        function closeOcrModal() {
+            const modal = document.getElementById('ocrModal');
+            if (modal) modal.remove();
+        }
+
+        function copyOcrText() {
+            const textArea = document.getElementById('ocrText');
+            if (textArea && textArea.value) {
+                navigator.clipboard.writeText(textArea.value).then(() => {
+                    const btn = document.querySelector('.ocr-footer .btn-copy');
+                    if (btn) {
+                        btn.textContent = '✓ 已复制';
+                        setTimeout(() => btn.textContent = '📋 复制文字', 2000);
+                    }
+                }).catch(() => {
+                    // fallback
+                    textArea.select();
+                    document.execCommand('copy');
+                });
+            }
+        }
+
+        function removeImage(id, field) {
+            updateError(id, field, '');
+            renderErrorCard(id);
+            viewError(id);
+        }
+
+        // ============================================
+        // Canvas 核心优化 - 荣耀Magic平板专用
+        // ============================================
+        function initCanvas(containerId, savedImage, type, bgImageData) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d', { 
+                alpha: true,
+                desynchronized: true
+            });
+            
+            const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
+            
+            // 获取DPR - 荣耀Magic高分辨率屏幕
+            const dpr = Math.min(window.devicePixelRatio || 1, 3); // 限制最大3倍DPR避免性能问题
+            
+            // 获取实际显示尺寸
+            const rect = container.querySelector('canvas').getBoundingClientRect();
+            const displayWidth = rect.width || container.offsetWidth;
+            // 动态计算高度：撑满到屏幕底部
+            const isWrongArea = containerId.startsWith('wrong_');
+            const canvasRect = canvas.getBoundingClientRect();
+            const availableHeight = window.innerHeight - canvasRect.top - 40; // 留40px底部边距
+            const displayHeight = Math.max(availableHeight, 350); // 最小350px
+            
+            // 设置Canvas实际像素 - 高DPI处理
+            canvas.width = Math.floor(displayWidth * dpr);
+            canvas.height = Math.floor(displayHeight * dpr);
+            
+            // 设置CSS显示尺寸
+            canvas.style.width = displayWidth + 'px';
+            canvas.style.height = displayHeight + 'px';
+            
+            // 缩放上下文以匹配DPR
+            ctx.scale(dpr, dpr);
+            
+            // 白色背景
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, displayWidth, displayHeight);
+            
+            // 背景图片（题目照片）
+            let bgImage = null;
+            if (bgImageData) {
+                bgImage = new Image();
+                bgImage.onload = function() {
+                    // 重绘白底 + 背景图
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, displayWidth, displayHeight);
+                    // 保持宽高比居中绘制
+                    const scale = Math.min(displayWidth / bgImage.width, displayHeight / bgImage.height);
+                    const w = bgImage.width * scale;
+                    const h = bgImage.height * scale;
+                    const x = (displayWidth - w) / 2;
+                    const y = (displayHeight - h) / 2;
+                    ctx.drawImage(bgImage, x, y, w, h);
+                    // 如果有保存的笔画叠加
+                    if (savedImage) {
+                        const savedImg = new Image();
+                        savedImg.onload = function() {
+                            ctx.drawImage(savedImg, 0, 0, displayWidth, displayHeight);
+                            syncToOffscreen();
+                        };
+                        savedImg.src = savedImage;
+                    } else {
+                        syncToOffscreen();
+                    }
+                };
+                bgImage.src = bgImageData;
+            } else if (savedImage) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+                };
+                img.src = savedImage;
+            }
+
+            // ========== 手写状态 ==========
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+            let strokeColor = '#1a1a1a';
+            let strokeWidth = 2;
+            let isEraser = false;
+            
+            // 性能优化：使用离屏canvas存储
+            const offscreenCanvas = document.createElement('canvas');
+            offscreenCanvas.width = canvas.width;
+            offscreenCanvas.height = canvas.height;
+            const offCtx = offscreenCanvas.getContext('2d', { alpha: false });
+            
+            // 复制当前内容到离屏canvas
+            function syncToOffscreen() {
+                offCtx.drawImage(canvas, 0, 0);
+            }
+            
+            // 从离屏canvas恢复
+            function restoreFromOffscreen() {
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.drawImage(offscreenCanvas, 0, 0);
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(dpr, dpr);
+            }
+
+            // ========== 获取坐标 - 适配各种输入 ==========
+            function getPointerPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+                const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+            }
+
+            // ========== 绘制函数 ==========
+            function drawLine(x1, y1, x2, y2) {
+                ctx.save();
+                
+                // 从canvasState获取最新的宽度和颜色
+                const currentWidth = container.canvasState.strokeWidth;
+                const currentColor = container.canvasState.strokeColor;
+                const currentEraser = container.canvasState.isEraser;
+                
+                if (currentEraser) {
+                    // 橡皮模式：用白色覆盖擦除
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = currentWidth * 4;
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = currentColor;
+                    ctx.lineWidth = currentWidth;
+                }
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+
+            // ========== 图形绘制函数 ==========
+            function drawShape(startX, startY, endX, endY, shapeType, isPreview) {
+                const currentWidth = container.canvasState.strokeWidth;
+                const currentColor = container.canvasState.strokeColor;
+                const lineStyle = container.canvasState.lineStyle;
+                
+                ctx.save();
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = currentWidth;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // 虚线模式
+                if (lineStyle === 'dash') {
+                    ctx.setLineDash([10, 5]);
+                }
+                
+                ctx.beginPath();
+                
+                switch(shapeType) {
+                    case 'line':
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        break;
+                    case 'triangle':
+                        // 普通三角形：起点是底边中点，终点是顶点
+                        const baseWidth = Math.abs(endX - startX) * 2;
+                        ctx.moveTo(startX - baseWidth/2, startY);
+                        ctx.lineTo(startX + baseWidth/2, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.closePath();
+                        break;
+                    case 'equilateral_triangle':
+                        // 等边三角形：起点是底边中点，自动计算高度
+                        const eqSide = Math.abs(endX - startX) * 2;
+                        const eqHeight = eqSide * Math.sqrt(3) / 2;
+                        ctx.moveTo(startX - eqSide/2, startY);
+                        ctx.lineTo(startX + eqSide/2, startY);
+                        ctx.lineTo(startX, startY - eqHeight);
+                        ctx.closePath();
+                        break;
+                    case 'isosceles_triangle':
+                        // 等腰三角形：起点是底边中点，终点是顶点（保持对称）
+                        const isoBase = Math.abs(endX - startX) * 2;
+                        const isoHeight = Math.abs(endY - startY);
+                        ctx.moveTo(startX - isoBase/2, startY);
+                        ctx.lineTo(startX + isoBase/2, startY);
+                        ctx.lineTo(startX, startY - isoHeight);
+                        ctx.closePath();
+                        break;
+                    case 'right_triangle':
+                        // 直角三角形：起点是直角顶点，终点确定两直角边
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, startY);
+                        ctx.lineTo(startX, endY);
+                        ctx.closePath();
+                        break;
+                    case 'rect':
+                        const w = endX - startX;
+                        const h = endY - startY;
+                        ctx.rect(startX, startY, w, h);
+                        break;
+                    case 'square':
+                        // 正方形：以起点为左上角，边长由拖动距离决定
+                        const sqSize = Math.min(Math.abs(endX - startX), Math.abs(endY - startY));
+                        ctx.rect(startX, startY, sqSize, sqSize);
+                        break;
+                    case 'parallelogram':
+                        // 平行四边形：起点是左下角，终点是右上角，倾斜角度由水平距离决定
+                        const pw = endX - startX;
+                        const ph = endY - startY;
+                        const offset = pw * 0.3; // 倾斜偏移
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(startX + pw, startY);
+                        ctx.lineTo(startX + pw - offset, startY + ph);
+                        ctx.lineTo(startX - offset, startY + ph);
+                        ctx.closePath();
+                        break;
+                    case 'ellipse':
+                        // 椭圆：起点是中心，终点是边缘
+                        const rx = Math.abs(endX - startX);
+                        const ry = Math.abs(endY - startY);
+                        ctx.ellipse(startX, startY, rx, ry, 0, 0, Math.PI * 2);
+                        break;
+                    case 'circle':
+                        const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                        ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+                        break;
+                    case 'arrow':
+                        // 画箭头线
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                        
+                        // 画箭头头部
+                        const angle = Math.atan2(endY - startY, endX - startX);
+                        const headLen = 15;
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
+                        break;
+                    
+                    // ========== 立体图形 ==========
+                    case 'cube':
+                        // 正方体：起点是前面左下角，终点是后面右上角
+                        const cubeSize = Math.min(Math.abs(endX - startX), Math.abs(endY - startY));
+                        const cubeOffset = cubeSize * 0.3; // 3D透视偏移
+                        drawCube(ctx, startX, startY, cubeSize, cubeSize, cubeOffset);
+                        break;
+                    case 'cuboid':
+                        // 长方体：起点是前面左下角，终点是后面右上角
+                        const cbWidth = Math.abs(endX - startX);
+                        const cbHeight = Math.abs(endY - startY);
+                        const cbOffset = Math.min(cbWidth, cbHeight) * 0.3;
+                        drawCuboid(ctx, startX, startY, cbWidth, cbHeight, cbOffset);
+                        break;
+                    case 'cylinder':
+                        // 圆柱：起点是底面中心，终点是顶面边缘
+                        const cylWidth = Math.abs(endX - startX);
+                        const cylHeight = Math.abs(endY - startY);
+                        drawCylinder(ctx, startX, startY, cylWidth, cylHeight);
+                        break;
+                    case 'cone':
+                        // 圆锥：起点是底面中心，终点是顶点
+                        const coneWidth = Math.abs(endX - startX);
+                        const coneHeight = Math.abs(endY - startY);
+                        drawCone(ctx, startX, startY, coneWidth, coneHeight);
+                        break;
+                    case 'sphere':
+                        // 球体：起点是中心，终点是边缘
+                        const sphereRadius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                        drawSphere(ctx, startX, startY, sphereRadius);
+                        break;
+                    
+                    // ========== 数学工具 ==========
+                    case 'coordinate':
+                        drawCoordinate(ctx, startX, startY, endX, endY, false);
+                        break;
+                    case 'coordinate_grid':
+                        drawCoordinate(ctx, startX, startY, endX, endY, true);
+                        break;
+                    case 'number_line':
+                        drawNumberLine(ctx, startX, startY, endX);
+                        break;
+                    case 'unit_circle':
+                        drawUnitCircle(ctx, startX, startY, Math.abs(endX - startX));
+                        break;
+                    case 'angle':
+                        drawAngle(ctx, startX, startY, endX, endY);
+                        break;
+                    case 'venn':
+                        drawVenn(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    
+                    // ========== 物理工具 ==========
+                    case 'force_arrow':
+                        drawForceArrow(ctx, startX, startY, endX, endY);
+                        break;
+                    case 'inclined_plane':
+                        drawInclinedPlane(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    case 'pulley':
+                        drawPulley(ctx, startX, startY, Math.abs(endX - startX));
+                        break;
+                    case 'spring':
+                        drawSpring(ctx, startX, startY, endX, endY);
+                        break;
+                    case 'convex_lens':
+                        drawConvexLens(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    case 'concave_lens':
+                        drawConcaveLens(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    case 'mirror':
+                        drawMirror(ctx, startX, startY, Math.abs(endX - startX));
+                        break;
+                    case 'resistor':
+                        drawResistor(ctx, startX, startY, Math.abs(endX - startX));
+                        break;
+                    case 'battery':
+                        drawBattery(ctx, startX, startY, Math.abs(endX - startX));
+                        break;
+                    case 'magnet':
+                        drawMagnet(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    
+                    // ========== 地理工具 ==========
+                    case 'earth':
+                        drawEarth(ctx, startX, startY, Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2)));
+                        break;
+                    case 'contour':
+                        drawContour(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    case 'profile':
+                        drawProfile(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    case 'wind':
+                        drawWind(ctx, startX, startY, endX, endY);
+                        break;
+                    
+                    // ========== 生物工具 ==========
+                    case 'plant_cell':
+                        drawPlantCell(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    case 'animal_cell':
+                        drawAnimalCell(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    case 'dna':
+                        drawDNA(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                    case 'microscope':
+                        drawMicroscope(ctx, startX, startY, Math.abs(endX - startX), Math.abs(endY - startY));
+                        break;
+                }
+                
+                ctx.stroke();
+                ctx.restore();
+            }
+            
+            // ========== 立体图形绘制辅助函数 ==========
+            function drawCube(ctx, x, y, width, height, offset) {
+                // 前面
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + width, y);
+                ctx.lineTo(x + width, y + height);
+                ctx.lineTo(x, y + height);
+                ctx.closePath();
+                ctx.stroke();
+                
+                // 后面
+                ctx.beginPath();
+                ctx.moveTo(x + offset, y - offset);
+                ctx.lineTo(x + width + offset, y - offset);
+                ctx.lineTo(x + width + offset, y + height - offset);
+                ctx.lineTo(x + offset, y + height - offset);
+                ctx.closePath();
+                ctx.stroke();
+                
+                // 连接线
+                ctx.beginPath();
+                ctx.moveTo(x, y); ctx.lineTo(x + offset, y - offset);
+                ctx.moveTo(x + width, y); ctx.lineTo(x + width + offset, y - offset);
+                ctx.moveTo(x + width, y + height); ctx.lineTo(x + width + offset, y + height - offset);
+                ctx.moveTo(x, y + height); ctx.lineTo(x + offset, y + height - offset);
+                ctx.stroke();
+            }
+            
+            function drawCuboid(ctx, x, y, width, height, offset) {
+                // 前面
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + width, y);
+                ctx.lineTo(x + width, y + height);
+                ctx.lineTo(x, y + height);
+                ctx.closePath();
+                ctx.stroke();
+                
+                // 后面
+                ctx.beginPath();
+                ctx.moveTo(x + offset, y - offset);
+                ctx.lineTo(x + width + offset, y - offset);
+                ctx.lineTo(x + width + offset, y + height - offset);
+                ctx.lineTo(x + offset, y + height - offset);
+                ctx.closePath();
+                ctx.stroke();
+                
+                // 连接线
+                ctx.beginPath();
+                ctx.moveTo(x, y); ctx.lineTo(x + offset, y - offset);
+                ctx.moveTo(x + width, y); ctx.lineTo(x + width + offset, y - offset);
+                ctx.moveTo(x + width, y + height); ctx.lineTo(x + width + offset, y + height - offset);
+                ctx.moveTo(x, y + height); ctx.lineTo(x + offset, y + height - offset);
+                ctx.stroke();
+            }
+            
+            function drawCylinder(ctx, cx, cy, radiusX, height) {
+                const radiusY = radiusX * 0.3; // 椭圆扁率
+                
+                // 底面椭圆
+                ctx.beginPath();
+                ctx.ellipse(cx, cy + height, radiusX, radiusY, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 顶面椭圆
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 侧面线
+                ctx.beginPath();
+                ctx.moveTo(cx - radiusX, cy);
+                ctx.lineTo(cx - radiusX, cy + height);
+                ctx.moveTo(cx + radiusX, cy);
+                ctx.lineTo(cx + radiusX, cy + height);
+                ctx.stroke();
+            }
+            
+            function drawCone(ctx, cx, cy, radiusX, height) {
+                const radiusY = radiusX * 0.3;
+                
+                // 底面椭圆
+                ctx.beginPath();
+                ctx.ellipse(cx, cy + height, radiusX, radiusY, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 侧面线到顶点
+                ctx.beginPath();
+                ctx.moveTo(cx - radiusX, cy + height);
+                ctx.lineTo(cx, cy);
+                ctx.moveTo(cx + radiusX, cy + height);
+                ctx.lineTo(cx, cy);
+                ctx.stroke();
+            }
+            
+            function drawSphere(ctx, cx, cy, radius) {
+                // 主圆
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 赤道椭圆（横线）
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, radius, radius * 0.3, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 经线椭圆（竖线）
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, radius * 0.3, radius, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // ========== 数学工具绘图函数 ==========
+            function drawCoordinate(ctx, x, y, w, h, withGrid) {
+                const originX = x;
+                const originY = y + h;
+                const endXCoord = x + w;
+                const endYCoord = y;
+                
+                // 网格
+                if (withGrid) {
+                    ctx.save();
+                    ctx.strokeStyle = '#ddd';
+                    ctx.lineWidth = 0.5;
+                    ctx.setLineDash([]);
+                    const gridSize = 20;
+                    for (let gx = originX; gx <= endXCoord; gx += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(gx, originY);
+                        ctx.lineTo(gx, endYCoord);
+                        ctx.stroke();
+                    }
+                    for (let gy = originY; gy >= endYCoord; gy -= gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(originX, gy);
+                        ctx.lineTo(endXCoord, gy);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+                
+                // X轴
+                ctx.beginPath();
+                ctx.moveTo(originX, originY);
+                ctx.lineTo(endXCoord + 10, originY);
+                ctx.stroke();
+                // X轴箭头
+                ctx.beginPath();
+                ctx.moveTo(endXCoord + 10, originY);
+                ctx.lineTo(endXCoord + 2, originY - 5);
+                ctx.moveTo(endXCoord + 10, originY);
+                ctx.lineTo(endXCoord + 2, originY + 5);
+                ctx.stroke();
+                
+                // Y轴
+                ctx.beginPath();
+                ctx.moveTo(originX, originY);
+                ctx.lineTo(originX, endYCoord - 10);
+                ctx.stroke();
+                // Y轴箭头
+                ctx.beginPath();
+                ctx.moveTo(originX, endYCoord - 10);
+                ctx.lineTo(originX - 5, endYCoord - 2);
+                ctx.moveTo(originX, endYCoord - 10);
+                ctx.lineTo(originX + 5, endYCoord - 2);
+                ctx.stroke();
+                
+                // 标注
+                ctx.save();
+                ctx.font = '14px Arial';
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fillText('x', endXCoord + 12, originY + 5);
+                ctx.fillText('y', originX - 15, endYCoord - 5);
+                ctx.fillText('O', originX - 15, originY + 15);
+                ctx.restore();
+            }
+            
+            function drawNumberLine(ctx, x, y, endXPos) {
+                // 数轴线
+                ctx.beginPath();
+                ctx.moveTo(x - 20, y);
+                ctx.lineTo(endXPos + 20, y);
+                ctx.stroke();
+                
+                // 箭头
+                ctx.beginPath();
+                ctx.moveTo(endXPos + 20, y);
+                ctx.lineTo(endXPos + 12, y - 5);
+                ctx.moveTo(endXPos + 20, y);
+                ctx.lineTo(endXPos + 12, y + 5);
+                ctx.stroke();
+                
+                // 刻度
+                const tickSpacing = 30;
+                const tickCount = Math.floor((endXPos - x) / tickSpacing);
+                for (let i = 0; i <= tickCount; i++) {
+                    const tx = x + i * tickSpacing;
+                    ctx.beginPath();
+                    ctx.moveTo(tx, y - 5);
+                    ctx.lineTo(tx, y + 5);
+                    ctx.stroke();
+                }
+            }
+            
+            function drawUnitCircle(ctx, cx, cy, radius) {
+                // 坐标轴
+                ctx.beginPath();
+                ctx.moveTo(cx - radius - 20, cy);
+                ctx.lineTo(cx + radius + 20, cy);
+                ctx.moveTo(cx, cy - radius - 20);
+                ctx.lineTo(cx, cy + radius + 20);
+                ctx.stroke();
+                
+                // 单位圆
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 标注
+                ctx.save();
+                ctx.font = '12px Arial';
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fillText('1', cx + radius + 5, cy + 15);
+                ctx.fillText('-1', cx - radius - 20, cy + 15);
+                ctx.fillText('1', cx + 5, cy - radius - 5);
+                ctx.fillText('-1', cx + 5, cy + radius + 15);
+                ctx.restore();
+            }
+            
+            function drawAngle(ctx, x, y, endXPos, endYPos) {
+                const radius = Math.sqrt(Math.pow(endXPos - x, 2) + Math.pow(endYPos - y, 2));
+                
+                // 两条边
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + radius, y);
+                ctx.moveTo(x, y);
+                ctx.lineTo(endXPos, endYPos);
+                ctx.stroke();
+                
+                // 角度弧
+                const angle = Math.atan2(endYPos - y, endXPos - x);
+                ctx.beginPath();
+                ctx.arc(x, y, radius * 0.3, 0, angle, angle < 0);
+                ctx.stroke();
+            }
+            
+            function drawVenn(ctx, x, y, w, h) {
+                const radius = Math.min(w, h) / 2;
+                const offset = radius * 0.5;
+                
+                // 左圆
+                ctx.beginPath();
+                ctx.arc(x + w/2 - offset, y + h/2, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 右圆
+                ctx.beginPath();
+                ctx.arc(x + w/2 + offset, y + h/2, radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // ========== 物理工具绘图函数 ==========
+            function drawForceArrow(ctx, x, y, endXPos, endYPos) {
+                // 力的箭头线
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(endXPos, endYPos);
+                ctx.stroke();
+                
+                // 箭头头部（更大）
+                const angle = Math.atan2(endYPos - y, endXPos - x);
+                const headLen = 20;
+                ctx.beginPath();
+                ctx.moveTo(endXPos, endYPos);
+                ctx.lineTo(endXPos - headLen * Math.cos(angle - Math.PI / 6), endYPos - headLen * Math.sin(angle - Math.PI / 6));
+                ctx.moveTo(endXPos, endYPos);
+                ctx.lineTo(endXPos - headLen * Math.cos(angle + Math.PI / 6), endYPos - headLen * Math.sin(angle + Math.PI / 6));
+                ctx.stroke();
+                
+                // 起点圆点
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            function drawInclinedPlane(ctx, x, y, w, h) {
+                // 斜面
+                ctx.beginPath();
+                ctx.moveTo(x, y + h);
+                ctx.lineTo(x + w, y + h);
+                ctx.lineTo(x + w, y);
+                ctx.closePath();
+                ctx.stroke();
+                
+                // 物体（方块）
+                const blockW = 30;
+                const blockH = 20;
+                const blockX = x + w * 0.4;
+                const blockY = y + h - (w * 0.4) * (h / w) - blockH;
+                ctx.beginPath();
+                ctx.rect(blockX, blockY, blockW, blockH);
+                ctx.stroke();
+            }
+            
+            function drawPulley(ctx, cx, cy, radius) {
+                // 滑轮圆
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 中心轴
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius * 0.15, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 支架
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - radius);
+                ctx.lineTo(cx, cy - radius - 20);
+                ctx.moveTo(cx - 15, cy - radius - 20);
+                ctx.lineTo(cx + 15, cy - radius - 20);
+                ctx.stroke();
+                
+                // 绳子
+                ctx.beginPath();
+                ctx.moveTo(cx - radius, cy);
+                ctx.lineTo(cx - radius, cy + 40);
+                ctx.moveTo(cx + radius, cy);
+                ctx.lineTo(cx + radius, cy + 40);
+                ctx.stroke();
+            }
+            
+            function drawSpring(ctx, x, y, endXPos, endYPos) {
+                const length = Math.sqrt(Math.pow(endXPos - x, 2) + Math.pow(endYPos - y, 2));
+                const angle = Math.atan2(endYPos - y, endXPos - x);
+                const coils = 8;
+                const amplitude = 10;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                for (let i = 0; i < coils; i++) {
+                    const segLen = length / coils;
+                    ctx.lineTo(i * segLen + segLen * 0.25, -amplitude);
+                    ctx.lineTo(i * segLen + segLen * 0.75, amplitude);
+                    ctx.lineTo((i + 1) * segLen, 0);
+                }
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+            
+            function drawConvexLens(ctx, cx, cy, w, h) {
+                // 凸透镜
+                ctx.beginPath();
+                ctx.ellipse(cx - w * 0.1, cy, w * 0.15, h / 2, 0, -Math.PI / 2, Math.PI / 2);
+                ctx.ellipse(cx + w * 0.1, cy, w * 0.15, h / 2, 0, Math.PI / 2, -Math.PI / 2);
+                ctx.stroke();
+                
+                // 主光轴
+                ctx.beginPath();
+                ctx.moveTo(cx - w / 2 - 20, cy);
+                ctx.lineTo(cx + w / 2 + 20, cy);
+                ctx.stroke();
+            }
+            
+            function drawConcaveLens(ctx, cx, cy, w, h) {
+                // 凹透镜
+                ctx.beginPath();
+                ctx.ellipse(cx - w * 0.15, cy, w * 0.1, h / 2, 0, -Math.PI / 2, Math.PI / 2, true);
+                ctx.ellipse(cx + w * 0.15, cy, w * 0.1, h / 2, 0, Math.PI / 2, -Math.PI / 2, true);
+                ctx.stroke();
+                
+                // 主光轴
+                ctx.beginPath();
+                ctx.moveTo(cx - w / 2 - 20, cy);
+                ctx.lineTo(cx + w / 2 + 20, cy);
+                ctx.stroke();
+            }
+            
+            function drawMirror(ctx, cx, cy, w) {
+                // 镜面
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - w / 2);
+                ctx.lineTo(cx, cy + w / 2);
+                ctx.stroke();
+                
+                // 背面斜线
+                const hatchCount = 8;
+                const hatchLen = 8;
+                for (let i = 0; i < hatchCount; i++) {
+                    const hy = cy - w / 2 + (w / hatchCount) * i;
+                    ctx.beginPath();
+                    ctx.moveTo(cx, hy);
+                    ctx.lineTo(cx + hatchLen, hy + hatchLen);
+                    ctx.stroke();
+                }
+            }
+            
+            function drawResistor(ctx, x, y, w) {
+                // 电阻符号（锯齿形）
+                const segments = 6;
+                const segW = w / segments;
+                const amp = 10;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                for (let i = 0; i < segments; i++) {
+                    ctx.lineTo(x + i * segW + segW * 0.5, y - amp);
+                    ctx.lineTo(x + (i + 1) * segW, y + amp);
+                }
+                ctx.stroke();
+                
+                // 引线
+                ctx.beginPath();
+                ctx.moveTo(x - 15, y);
+                ctx.lineTo(x, y);
+                ctx.moveTo(x + w, y);
+                ctx.lineTo(x + w + 15, y);
+                ctx.stroke();
+            }
+            
+            function drawBattery(ctx, x, y, w) {
+                // 长线（正极）
+                ctx.beginPath();
+                ctx.moveTo(x + w * 0.3, y - 15);
+                ctx.lineTo(x + w * 0.3, y + 15);
+                ctx.stroke();
+                
+                // 短线（负极）
+                ctx.beginPath();
+                ctx.moveTo(x + w * 0.7, y - 8);
+                ctx.lineTo(x + w * 0.7, y + 8);
+                ctx.stroke();
+                
+                // 引线
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + w * 0.3, y);
+                ctx.moveTo(x + w * 0.7, y);
+                ctx.lineTo(x + w, y);
+                ctx.stroke();
+                
+                // 标注
+                ctx.save();
+                ctx.font = '12px Arial';
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fillText('+', x + w * 0.3 - 5, y - 20);
+                ctx.fillText('-', x + w * 0.7 - 3, y - 12);
+                ctx.restore();
+            }
+            
+            function drawMagnet(ctx, x, y, w, h) {
+                // U形磁铁
+                const r = Math.min(w, h) / 2;
+                
+                // 左边（N极）
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.stroke();
+                
+                // 右边（S极）
+                ctx.beginPath();
+                ctx.moveTo(x + w, y);
+                ctx.lineTo(x + w, y + h);
+                ctx.lineTo(x + w - r, y + h);
+                ctx.stroke();
+                
+                // 底部弧线
+                ctx.beginPath();
+                ctx.arc(x + w / 2, y + h, (w - 2 * r) / 2, 0, Math.PI);
+                ctx.stroke();
+                
+                // 标注
+                ctx.save();
+                ctx.font = 'bold 14px Arial';
+                ctx.fillStyle = '#E74C3C';
+                ctx.fillText('N', x - 5, y - 5);
+                ctx.fillStyle = '#3498DB';
+                ctx.fillText('S', x + w - 5, y - 5);
+                ctx.restore();
+            }
+            
+            // ========== 地理工具绘图函数 ==========
+            function drawEarth(ctx, cx, cy, radius) {
+                // 地球圆
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 纬线
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, radius, radius * 0.3, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(cx, cy - radius * 0.4, radius * 0.8, radius * 0.2, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(cx, cy + radius * 0.4, radius * 0.8, radius * 0.2, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 经线
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, radius * 0.3, radius, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            function drawContour(ctx, cx, cy, w, h) {
+                // 等高线（多个同心椭圆）
+                const layers = 4;
+                for (let i = 0; i < layers; i++) {
+                    const rx = w * (1 - i * 0.2) / 2;
+                    const ry = h * (1 - i * 0.2) / 2;
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            
+            function drawProfile(ctx, x, y, w, h) {
+                // 地形剖面图
+                ctx.beginPath();
+                ctx.moveTo(x, y + h);
+                ctx.lineTo(x, y + h * 0.7);
+                ctx.quadraticCurveTo(x + w * 0.2, y + h * 0.3, x + w * 0.4, y + h * 0.5);
+                ctx.quadraticCurveTo(x + w * 0.6, y + h * 0.7, x + w * 0.8, y + h * 0.2);
+                ctx.quadraticCurveTo(x + w * 0.9, y + h * 0.4, x + w, y + h * 0.6);
+                ctx.lineTo(x + w, y + h);
+                ctx.closePath();
+                ctx.stroke();
+                
+                // 基准线
+                ctx.beginPath();
+                ctx.moveTo(x, y + h);
+                ctx.lineTo(x + w, y + h);
+                ctx.stroke();
+            }
+            
+            function drawWind(ctx, x, y, endXPos, endYPos) {
+                // 风向杆
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(endXPos, endYPos);
+                ctx.stroke();
+                
+                // 风向标（三角形）
+                const angle = Math.atan2(endYPos - y, endXPos - x);
+                const flagLen = 20;
+                
+                ctx.beginPath();
+                ctx.moveTo(endXPos, endYPos);
+                ctx.lineTo(endXPos - flagLen * Math.cos(angle - Math.PI / 4), endYPos - flagLen * Math.sin(angle - Math.PI / 4));
+                ctx.lineTo(endXPos - flagLen * Math.cos(angle + Math.PI / 4), endYPos - flagLen * Math.sin(angle + Math.PI / 4));
+                ctx.closePath();
+                ctx.stroke();
+            }
+            
+            // ========== 生物工具绘图函数 ==========
+            function drawPlantCell(ctx, x, y, w, h) {
+                // 细胞壁（矩形带圆角）
+                ctx.beginPath();
+                ctx.rect(x, y, w, h);
+                ctx.stroke();
+                
+                // 细胞膜
+                ctx.beginPath();
+                ctx.rect(x + 5, y + 5, w - 10, h - 10);
+                ctx.stroke();
+                
+                // 细胞核
+                ctx.beginPath();
+                ctx.ellipse(x + w * 0.5, y + h * 0.5, w * 0.15, h * 0.15, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 叶绿体（椭圆）
+                ctx.beginPath();
+                ctx.ellipse(x + w * 0.25, y + h * 0.3, 10, 6, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(x + w * 0.7, y + h * 0.7, 10, 6, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 液泡
+                ctx.beginPath();
+                ctx.ellipse(x + w * 0.5, y + h * 0.5, w * 0.25, h * 0.25, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            function drawAnimalCell(ctx, cx, cy, rx, ry) {
+                // 细胞膜（不规则圆形）
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 细胞核
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rx * 0.3, ry * 0.3, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 线粒体
+                ctx.beginPath();
+                ctx.ellipse(cx + rx * 0.5, cy - ry * 0.3, 8, 5, 0.3, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 内质网
+                ctx.beginPath();
+                ctx.moveTo(cx - rx * 0.4, cy + ry * 0.3);
+                ctx.quadraticCurveTo(cx - rx * 0.2, cy + ry * 0.5, cx, cy + ry * 0.3);
+                ctx.stroke();
+            }
+            
+            function drawDNA(ctx, x, y, w, h) {
+                // DNA双螺旋
+                const segments = 20;
+                const segH = h / segments;
+                const amplitude = w / 4;
+                
+                // 链1
+                ctx.beginPath();
+                for (let i = 0; i <= segments; i++) {
+                    const py = y + i * segH;
+                    const px = x + w / 2 + Math.sin(i * 0.6) * amplitude;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                
+                // 链2
+                ctx.beginPath();
+                for (let i = 0; i <= segments; i++) {
+                    const py = y + i * segH;
+                    const px = x + w / 2 - Math.sin(i * 0.6) * amplitude;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                
+                // 碱基对（横线）
+                for (let i = 2; i < segments; i += 3) {
+                    const py = y + i * segH;
+                    const px1 = x + w / 2 + Math.sin(i * 0.6) * amplitude;
+                    const px2 = x + w / 2 - Math.sin(i * 0.6) * amplitude;
+                    ctx.beginPath();
+                    ctx.moveTo(px1, py);
+                    ctx.lineTo(px2, py);
+                    ctx.stroke();
+                }
+            }
+            
+            function drawMicroscope(ctx, x, y, w, h) {
+                // 显微镜简图
+                // 底座
+                ctx.beginPath();
+                ctx.moveTo(x, y + h);
+                ctx.lineTo(x + w, y + h);
+                ctx.stroke();
+                
+                // 支架
+                ctx.beginPath();
+                ctx.moveTo(x + w * 0.3, y + h);
+                ctx.lineTo(x + w * 0.3, y + h * 0.3);
+                ctx.lineTo(x + w * 0.7, y + h * 0.3);
+                ctx.lineTo(x + w * 0.7, y + h);
+                ctx.stroke();
+                
+                // 镜筒
+                ctx.beginPath();
+                ctx.moveTo(x + w * 0.5, y + h * 0.3);
+                ctx.lineTo(x + w * 0.5, y);
+                ctx.stroke();
+                
+                // 目镜
+                ctx.beginPath();
+                ctx.rect(x + w * 0.4, y - 10, w * 0.2, 15);
+                ctx.stroke();
+                
+                // 物镜
+                ctx.beginPath();
+                ctx.moveTo(x + w * 0.5, y + h * 0.3);
+                ctx.lineTo(x + w * 0.45, y + h * 0.5);
+                ctx.moveTo(x + w * 0.5, y + h * 0.3);
+                ctx.lineTo(x + w * 0.55, y + h * 0.5);
+                ctx.stroke();
+                
+                // 载物台
+                ctx.beginPath();
+                ctx.moveTo(x + w * 0.2, y + h * 0.6);
+                ctx.lineTo(x + w * 0.8, y + h * 0.6);
+                ctx.stroke();
+            }
+
+            // ========== 曲线绘制函数 ==========
+            function drawCurve(points) {
+                if (points.length < 2) return;
+                
+                const currentWidth = container.canvasState.strokeWidth;
+                const currentColor = container.canvasState.strokeColor;
+                
+                ctx.save();
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = currentWidth;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                
+                // 使用贝塞尔曲线平滑连接
+                for (let i = 1; i < points.length - 1; i++) {
+                    const xc = (points[i].x + points[i+1].x) / 2;
+                    const yc = (points[i].y + points[i+1].y) / 2;
+                    ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+                }
+                
+                // 连接最后一个点
+                if (points.length > 1) {
+                    const last = points[points.length - 1];
+                    ctx.lineTo(last.x, last.y);
+                }
+                
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // ========== Pointer Events - 统一处理鼠标/触摸/手写笔 ==========
+            // Pointer Events API 提供统一的输入处理
+            canvas.addEventListener('pointerdown', function(e) {
+                e.preventDefault();
+                canvas.setPointerCapture(e.pointerId);
+                
+                isDrawing = true;
+                const pos = getPointerPos(e);
+                lastX = pos.x;
+                lastY = pos.y;
+                
+                // 记录指针位置供符号插入使用
+                container.canvasState.lastPointerPos = { x: pos.x, y: pos.y };
+                
+                // 检查是否是图形模式
+                const currentShape = container.canvasState.currentShape;
+                
+                if (currentShape === 'curve') {
+                    // 曲线模式：开始收集点
+                    container.canvasState.curvePoints = [{ x: pos.x, y: pos.y }];
+                    container.canvasState.shapeStartPos = { x: pos.x, y: pos.y };
+                    container.canvasState.shapePreviewData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                } else if (currentShape) {
+                    // 其他图形模式：记录起点，保存背景（用于实时预览）
+                    container.canvasState.shapeStartPos = { x: pos.x, y: pos.y };
+                    container.canvasState.shapePreviewData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // 对于符号类工具，立即绘制一个默认大小的预览
+                    const symbolTools = ['coordinate', 'coordinate_grid', 'number_line', 'unit_circle', 
+                                        'angle', 'venn', 'force_arrow', 'inclined_plane', 'pulley', 
+                                        'spring', 'convex_lens', 'concave_lens', 'mirror', 'resistor', 
+                                        'battery', 'magnet', 'earth', 'contour', 'profile', 'wind',
+                                        'plant_cell', 'animal_cell', 'dna', 'microscope',
+                                        'cube', 'cuboid', 'cylinder', 'cone', 'sphere'];
+                    
+                    if (symbolTools.includes(currentShape)) {
+                        // 绘制初始预览（默认大小）
+                        const defaultSize = 80; // 默认大小
+                        drawShape(pos.x, pos.y, pos.x + defaultSize, pos.y + defaultSize, currentShape, true);
+                    }
+                } else {
+                    // 画笔模式：绘制起点
+                    ctx.save();
+                    if (container.canvasState.isEraser) {
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.beginPath();
+                        ctx.arc(pos.x, pos.y, container.canvasState.strokeWidth * 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        ctx.fillStyle = container.canvasState.strokeColor;
+                        ctx.beginPath();
+                        ctx.arc(pos.x, pos.y, container.canvasState.strokeWidth / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            }, { passive: false });
+
+            canvas.addEventListener('pointermove', function(e) {
+                if (!isDrawing) return;
+                e.preventDefault();
+                
+                const pos = getPointerPos(e);
+                
+                // 检查是否是图形模式
+                const currentShape = container.canvasState.currentShape;
+                
+                if (currentShape === 'curve') {
+                    // 曲线模式：收集点并实时绘制
+                    container.canvasState.curvePoints.push({ x: pos.x, y: pos.y });
+                    if (container.canvasState.shapePreviewData) {
+                        ctx.putImageData(container.canvasState.shapePreviewData, 0, 0);
+                    }
+                    drawCurve(container.canvasState.curvePoints);
+                } else if (currentShape && container.canvasState.shapeStartPos) {
+                    // 图形模式：恢复背景，绘制预览图形
+                    if (container.canvasState.shapePreviewData) {
+                        ctx.putImageData(container.canvasState.shapePreviewData, 0, 0);
+                    }
+                    drawShape(
+                        container.canvasState.shapeStartPos.x,
+                        container.canvasState.shapeStartPos.y,
+                        pos.x, pos.y,
+                        currentShape,
+                        true
+                    );
+                } else {
+                    // 画笔模式：正常绘制
+                    drawLine(lastX, lastY, pos.x, pos.y);
+                    lastX = pos.x;
+                    lastY = pos.y;
+                }
+            }, { passive: false });
+
+            canvas.addEventListener('pointerup', function(e) {
+                if (isDrawing) {
+                    const currentShape = container.canvasState.currentShape;
+                    
+                    if (currentShape === 'curve' && container.canvasState.curvePoints.length > 1) {
+                        // 曲线模式：完成最终绘制
+                        if (container.canvasState.shapePreviewData) {
+                            ctx.putImageData(container.canvasState.shapePreviewData, 0, 0);
+                        }
+                        drawCurve(container.canvasState.curvePoints);
+                        container.canvasState.curvePoints = [];
+                        container.canvasState.shapePreviewData = null;
+                    } else if (currentShape && container.canvasState.shapeStartPos) {
+                        // 图形模式：完成最终绘制
+                        const pos = getPointerPos(e);
+                        if (container.canvasState.shapePreviewData) {
+                            ctx.putImageData(container.canvasState.shapePreviewData, 0, 0);
+                        }
+                        drawShape(
+                            container.canvasState.shapeStartPos.x,
+                            container.canvasState.shapeStartPos.y,
+                            pos.x, pos.y,
+                            currentShape,
+                            false
+                        );
+                        // 清除图形状态
+                        container.canvasState.shapeStartPos = null;
+                        container.canvasState.shapePreviewData = null;
+                    }
+                    
+                    saveCanvasImage(containerId, type, errId);
+                }
+                isDrawing = false;
+                canvas.releasePointerCapture(e.pointerId);
+            });
+
+            canvas.addEventListener('pointercancel', function(e) {
+                isDrawing = false;
+                canvas.releasePointerCapture(e.pointerId);
+            });
+
+            canvas.addEventListener('pointerleave', function(e) {
+                if (isDrawing) {
+                    saveCanvasImage(containerId, type, errId);
+                }
+                isDrawing = false;
+            });
+
+            // 禁用触摸默认行为（防止页面滚动）
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+
+            // 确保Canvas获取焦点以接收Pointer Events
+            canvas.style.touchAction = 'none';
+            canvas.setAttribute('touch-action', 'none');
+
+            // 存储画布状态
+            container.canvasState = {
+                ctx: ctx,
+                strokeColor: strokeColor,
+                strokeWidth: strokeWidth,
+                isEraser: isEraser,
+                dpr: dpr,
+                currentShape: null,
+                shapeStartPos: null,
+                shapePreviewData: null,
+                history: [],
+                maxHistory: 20,
+                lineStyle: 'solid', // 'solid' 实线 | 'dash' 虚线
+                curvePoints: [], // 曲线经过的点
+                bgImageData: bgImageData || null, // 背景题目图片
+                displayWidth: displayWidth,
+                displayHeight: displayHeight
+            };
+        }
+
+        // ============================================
+        // Canvas 工具函数
+        // ============================================
+        function saveHistory(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!canvas) return;
+            
+            // 保存当前Canvas状态到历史记录
+            const imageData = canvas.toDataURL('image/png');
+            container.canvasState.history.push(imageData);
+            
+            // 限制历史记录数量
+            if (container.canvasState.history.length > container.canvasState.maxHistory) {
+                container.canvasState.history.shift();
+            }
+        }
+
+        function undoCanvas(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            if (container.canvasState.history.length === 0) {
+                alert('没有可撤销的操作');
+                return;
+            }
+            
+            // 取出上一个状态
+            const previousState = container.canvasState.history.pop();
+            const canvas = document.getElementById('canvas_' + containerId);
+            const ctx = canvas.getContext('2d');
+            
+            // 恢复Canvas状态
+            const img = new Image();
+            img.onload = function() {
+                // 必须先重置变换矩阵，避免dpr缩放导致图片被放大
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            };
+            img.src = previousState;
+        }
+
+        function redrawBackground(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = container.canvasState.dpr;
+            const dw = container.canvasState.displayWidth;
+            const dh = container.canvasState.displayHeight;
+            const bgData = container.canvasState.bgImageData;
+            
+            ctx.save();
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, dw, dh);
+            ctx.restore();
+            
+            if (bgData) {
+                const bgImg = new Image();
+                bgImg.onload = function() {
+                    ctx.save();
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                    const scale = Math.min(dw / bgImg.width, dh / bgImg.height);
+                    const w = bgImg.width * scale;
+                    const h = bgImg.height * scale;
+                    const x = (dw - w) / 2;
+                    const y = (dh - h) / 2;
+                    ctx.drawImage(bgImg, x, y, w, h);
+                    ctx.restore();
+                };
+                bgImg.src = bgData;
+            }
+        }
+
+        function clearCanvas(containerId) {
+            if (!confirm('确定要清空整个画布吗？建议用"撤销"或"橡皮擦"部分修改！')) {
+                return;
+            }
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            // 同时清空浮动符号层
+            const overlay = document.getElementById('overlay_' + containerId);
+            if (overlay) overlay.innerHTML = '';
+            
+            // 清空画布并重绘背景图
+            container.canvasState.history = [];
+            redrawBackground(containerId);
+            
+            updateBakeBtn(containerId);
+            saveCanvasImage(containerId, containerId.match(/^(wrong|analysis|correct)/)[1], 
+                           containerId.replace(/^(wrong_|analysis_|correct_)/, ''));
+        }
+
+        function saveCanvasImage(containerId, type, errId) {
+            // 先保存历史记录
+            saveHistory(containerId);
+            
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!canvas) return;
+            
+            const dataUrl = canvas.toDataURL('image/png');
+            const fieldMap = {
+                'wrong': 'wrong_answer_image',
+                'analysis': 'analysis_image',
+                'correct': 'correct_solution_image'
+            };
+            
+            updateError(errId, fieldMap[type], dataUrl);
+        }
+
+        function setColor(btn, color, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            container.canvasState.strokeColor = color;
+            container.canvasState.isEraser = false;
+            
+            container.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            container.querySelectorAll('.canvas-tools button').forEach(b => {
+                if (b.textContent.includes('橡皮')) b.classList.remove('active');
+                if (b.textContent.includes('画笔')) b.classList.add('active');
+            });
+        }
+
+        function setPen(btn, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            // 自动烘焙未确认的符号
+            const overlay = document.getElementById('overlay_' + containerId);
+            if (overlay && overlay.querySelectorAll('.draggable-symbol').length > 0) {
+                bakeSymbols(containerId);
+            }
+
+            container.canvasState.isEraser = false;
+            container.canvasState.currentShape = null;
+            
+            container.querySelectorAll('.canvas-tools button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function setEraser(btn, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            // 自动烘焙未确认的符号
+            const overlay = document.getElementById('overlay_' + containerId);
+            if (overlay && overlay.querySelectorAll('.draggable-symbol').length > 0) {
+                bakeSymbols(containerId);
+            }
+
+            container.canvasState.isEraser = true;
+            container.canvasState.currentShape = null;
+            
+            container.querySelectorAll('.canvas-tools button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function setShape(btn, containerId, shapeType) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            // 自动烘焙未确认的符号
+            const overlay = document.getElementById('overlay_' + containerId);
+            if (overlay && overlay.querySelectorAll('.draggable-symbol').length > 0) {
+                bakeSymbols(containerId);
+            }
+
+            container.canvasState.isEraser = false;
+            container.canvasState.currentShape = shapeType;
+            container.canvasState.curvePoints = []; // 重置曲线
+            
+            container.querySelectorAll('.canvas-tools button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function toggleLineStyle(btn, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            // 切换线型
+            if (container.canvasState.lineStyle === 'solid') {
+                container.canvasState.lineStyle = 'dash';
+                btn.textContent = '- - - - 虚线';
+            } else {
+                container.canvasState.lineStyle = 'solid';
+                btn.textContent = '━━━━ 实线';
+            }
+        }
+        
+        // 三角形类型循环：普通三角 → 等边三角 → 等腰三角 → 直角三角
+        function toggleTriangleType(btn, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            const types = ['triangle', 'equilateral_triangle', 'isosceles_triangle', 'right_triangle'];
+            const labels = ['普通三角', '等边三角', '等腰三角', '直角三角'];
+            const icons = ['△', '△', '△', '◺'];
+            
+            const currentType = container.canvasState.currentShape;
+            let currentIndex = types.indexOf(currentType);
+            
+            // 如果不是三角形类型，从第一个开始
+            if (currentIndex === -1) {
+                currentIndex = 0;
+            } else {
+                // 循环到下一个
+                currentIndex = (currentIndex + 1) % types.length;
+            }
+            
+            // 设置新的图形类型
+            container.canvasState.isEraser = false;
+            container.canvasState.currentShape = types[currentIndex];
+            container.canvasState.curvePoints = [];
+            
+            // 更新按钮文字
+            const label = btn.querySelector('.shape-type-label');
+            if (label) {
+                label.textContent = labels[currentIndex];
+            }
+            btn.firstChild.textContent = icons[currentIndex] + ' ';
+            
+            // 更新按钮激活状态
+            container.querySelectorAll('.canvas-tools button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        
+        // 矩形类型循环：矩形 → 正方形 → 平行四边形
+        function toggleRectType(btn, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            const types = ['rect', 'square', 'parallelogram'];
+            const labels = ['矩形', '正方形', '平行四边形'];
+            const icons = ['□', '□', '▱'];
+            
+            const currentType = container.canvasState.currentShape;
+            let currentIndex = types.indexOf(currentType);
+            
+            // 如果不是矩形类型，从第一个开始
+            if (currentIndex === -1) {
+                currentIndex = 0;
+            } else {
+                // 循环到下一个
+                currentIndex = (currentIndex + 1) % types.length;
+            }
+            
+            // 设置新的图形类型
+            container.canvasState.isEraser = false;
+            container.canvasState.currentShape = types[currentIndex];
+            container.canvasState.curvePoints = [];
+            
+            // 更新按钮文字
+            const label = btn.querySelector('.shape-type-label');
+            if (label) {
+                label.textContent = labels[currentIndex];
+            }
+            btn.firstChild.textContent = icons[currentIndex] + ' ';
+            
+            // 更新按钮激活状态
+            container.querySelectorAll('.canvas-tools button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        
+        // 立体图形类型循环：正方体 → 长方体 → 圆柱 → 圆锥 → 球体
+        function toggle3DType(btn, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            const types = ['cube', 'cuboid', 'cylinder', 'cone', 'sphere'];
+            const labels = ['正方体', '长方体', '圆柱', '圆锥', '球体'];
+            const icons = ['🧊', '📦', '🥫', '🔺', '⚪'];
+            
+            const currentType = container.canvasState.currentShape;
+            let currentIndex = types.indexOf(currentType);
+            
+            // 如果不是立体图形类型，从第一个开始
+            if (currentIndex === -1) {
+                currentIndex = 0;
+            } else {
+                // 循环到下一个
+                currentIndex = (currentIndex + 1) % types.length;
+            }
+            
+            // 设置新的图形类型
+            container.canvasState.isEraser = false;
+            container.canvasState.currentShape = types[currentIndex];
+            container.canvasState.curvePoints = [];
+            
+            // 更新按钮文字
+            const label = btn.querySelector('.shape-type-label');
+            if (label) {
+                label.textContent = labels[currentIndex];
+            }
+            btn.firstChild.textContent = icons[currentIndex] + ' ';
+            
+            // 更新按钮激活状态
+            container.querySelectorAll('.canvas-tools button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        
+        // ========== 工具面板功能 ==========
+        // 显示/隐藏工具面板
+        function toggleToolPanel(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            // 查找已有面板（挂在body上，用data-container-id区分）
+            let panel = document.querySelector('.tool-panel[data-container-id="' + containerId + '"]');
+            
+            if (panel && panel.classList.contains('show')) {
+                // 已显示，关闭
+                panel.classList.remove('show');
+                return;
+            }
+            
+            // 关闭其他面板
+            document.querySelectorAll('.tool-panel.show').forEach(p => p.classList.remove('show'));
+            
+            if (!panel) {
+                // 创建新面板，挂到body
+                panel = document.createElement('div');
+                panel.className = 'tool-panel show';
+                panel.setAttribute('data-container-id', containerId);
+                panel.innerHTML = getToolPanelHTML(containerId);
+                document.body.appendChild(panel);
+            } else {
+                panel.classList.add('show');
+            }
+            
+            // 计算位置：在工具按钮下方
+            const btn = container.querySelector('.tool-bucket-btn');
+            if (btn) {
+                const btnRect = btn.getBoundingClientRect();
+                const panelWidth = 320;
+                let left = btnRect.left;
+                let top = btnRect.bottom + 4;
+                
+                // 防止超出右边
+                if (left + panelWidth > window.innerWidth) {
+                    left = window.innerWidth - panelWidth - 10;
+                }
+                // 防止超出底部
+                if (top + 400 > window.innerHeight) {
+                    top = btnRect.top - 4 - Math.min(400, window.innerHeight * 0.6);
+                }
+                
+                panel.style.left = Math.max(10, left) + 'px';
+                panel.style.top = Math.max(10, top) + 'px';
+            }
+        }
+        
+        // 生成工具面板HTML
+        function getToolPanelHTML(containerId) {
+            return `
+                <div class="tool-category">
+                    <div class="tool-category-title">📐 基础图形</div>
+                    <div class="tool-grid">
+                        <button onclick="selectToolFromPanel('${containerId}', 'line', this)">/ 直线</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'curve', this)">~ 曲线</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'arrow', this)">→ 箭头</button>
+                    </div>
+                </div>
+                <div class="tool-category">
+                    <div class="tool-category-title">🔷 2D图形</div>
+                    <div class="tool-grid">
+                        <button onclick="selectToolFromPanel('${containerId}', 'triangle', this)">△ 普通三角</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'equilateral_triangle', this)">△ 等边三角</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'isosceles_triangle', this)">△ 等腰三角</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'right_triangle', this)">◺ 直角三角</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'rect', this)">□ 矩形</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'square', this)">□ 正方形</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'parallelogram', this)">▱ 平行四边形</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'ellipse', this)">◎ 椭圆</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'circle', this)">○ 圆</button>
+                    </div>
+                </div>
+                <div class="tool-category">
+                    <div class="tool-category-title">🧊 立体图形</div>
+                    <div class="tool-grid">
+                        <button onclick="selectToolFromPanel('${containerId}', 'cube', this)">🧊 正方体</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'cuboid', this)">📦 长方体</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'cylinder', this)">🥫 圆柱</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'cone', this)">🔺 圆锥</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'sphere', this)">⚪ 球体</button>
+                    </div>
+                </div>
+                <div class="tool-category">
+                    <div class="tool-category-title">📊 数学工具</div>
+                    <div class="tool-grid">
+                        <button onclick="selectToolFromPanel('${containerId}', 'coordinate', this)">📊 直角坐标系</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'coordinate_grid', this)"># 网格坐标系</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'number_line', this)">📏 数轴</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'unit_circle', this)">⭕ 单位圆</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'angle', this)">∠ 角度标注</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'venn', this)">⭕ Venn图</button>
+                    </div>
+                </div>
+                <div class="tool-category">
+                    <div class="tool-category-title">⚡ 物理工具</div>
+                    <div class="tool-grid">
+                        <button onclick="selectToolFromPanel('${containerId}', 'force_arrow', this)">➡️ 力箭头</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'inclined_plane', this)">📐 斜面</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'pulley', this)">⚙️ 滑轮</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'spring', this)">🔗 弹簧</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'convex_lens', this)">🔍 凸透镜</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'concave_lens', this)">🔎 凹透镜</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'mirror', this)">🪞 平面镜</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'resistor', this)">⚡ 电阻</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'battery', this)">🔋 电池</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'magnet', this)">🧲 磁铁</button>
+                    </div>
+                </div>
+                <div class="tool-category">
+                    <div class="tool-category-title">🌍 地理工具</div>
+                    <div class="tool-grid">
+                        <button onclick="selectToolFromPanel('${containerId}', 'earth', this)">🌍 地球</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'contour', this)">⛰️ 等高线</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'profile', this)">📈 地形剖面</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'wind', this)">💨 风向标</button>
+                    </div>
+                </div>
+                <div class="tool-category">
+                    <div class="tool-category-title">🧬 生物工具</div>
+                    <div class="tool-grid">
+                        <button onclick="selectToolFromPanel('${containerId}', 'plant_cell', this)">🌿 植物细胞</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'animal_cell', this)">🔬 动物细胞</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'dna', this)">🧬 DNA</button>
+                        <button onclick="selectToolFromPanel('${containerId}', 'microscope', this)">🔬 显微镜</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 从面板选择工具
+        function selectToolFromPanel(containerId, toolType, btn) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            // 自动烘焙未确认的符号
+            const overlay = document.getElementById('overlay_' + containerId);
+            if (overlay && overlay.querySelectorAll('.draggable-symbol').length > 0) {
+                bakeSymbols(containerId);
+            }
+
+            // 设置工具类型
+            container.canvasState.isEraser = false;
+            container.canvasState.currentShape = toolType;
+            container.canvasState.curvePoints = [];
+            
+            // 更新按钮激活状态
+            container.querySelectorAll('.canvas-tools button').forEach(b => b.classList.remove('active'));
+            const toolBucketBtn = container.querySelector('.tool-bucket-btn');
+            if (toolBucketBtn) {
+                toolBucketBtn.classList.add('active');
+                // 更新按钮文字显示当前工具
+                toolBucketBtn.textContent = '🧰 ' + btn.textContent.trim();
+            }
+            
+            // 关闭所有面板（面板挂在body上）
+            document.querySelectorAll('.tool-panel.show').forEach(p => p.classList.remove('show'));
+        }
+
+        function setStrokeWidth(width, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            container.canvasState.strokeWidth = parseInt(width);
+            
+            const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
+            const type = containerId.match(/^(wrong|analysis|correct)/)[1];
+            const sizeLabel = document.getElementById('size_' + errId + '_' + type);
+            if (sizeLabel) sizeLabel.textContent = width;
+        }
+
+        // ============================================
+        // 符号面板
+        // ============================================
+        function toggleSymbolPanel(containerId) {
+            const panel = document.getElementById('symbols_' + containerId);
+            if (panel) {
+                panel.classList.toggle('open');
+            }
+        }
+
+        function insertSymbol(errId, type, symbol) {
+            const containerId = type + '_' + errId;
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+            
+            const overlay = document.getElementById('overlay_' + containerId);
+            if (!overlay) return;
+            
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!canvas) return;
+
+            const color = container.canvasState.strokeColor || '#1a1a1a';
+            const fontSize = (container.canvasState.strokeWidth || 3) * 12;
+
+            // 自动关闭符号面板
+            const panel = document.getElementById('symbols_' + containerId);
+            if (panel) {
+                panel.classList.remove('open');
+            }
+
+            // 创建可拖拽的符号元素
+            const symEl = document.createElement('div');
+            symEl.className = 'draggable-symbol';
+            symEl.setAttribute('data-symbol', symbol);
+            symEl.setAttribute('data-color', color);
+            symEl.setAttribute('data-fontsize', fontSize);
+
+            // 符号文字
+            const symText = document.createElement('span');
+            symText.textContent = symbol;
+            symText.style.fontSize = fontSize + 'px';
+            symText.style.color = color;
+            symText.style.fontFamily = '"Times New Roman", serif';
+            symText.style.pointerEvents = 'none';
+            symEl.appendChild(symText);
+
+            // 删除按钮
+            const delBtn = document.createElement('button');
+            delBtn.className = 'sym-delete';
+            delBtn.textContent = '×';
+            delBtn.addEventListener('pointerdown', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                symEl.remove();
+                updateBakeBtn(containerId);
+            });
+            symEl.appendChild(delBtn);
+
+            // 缩放手柄
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'sym-resize';
+            resizeHandle.textContent = '⤡';
+            resizeHandle.addEventListener('pointerdown', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                startResize(e, symEl, symText);
+            });
+            symEl.appendChild(resizeHandle);
+
+            // 放置位置：画布中心
+            const rect = canvas.getBoundingClientRect();
+            const startX = rect.width / 2 - 20;
+            const startY = rect.height / 2 - 20;
+            symEl.style.left = startX + 'px';
+            symEl.style.top = startY + 'px';
+
+            // 拖拽移动
+            let isDragging = false;
+            let dragOffsetX = 0, dragOffsetY = 0;
+
+            symEl.addEventListener('pointerdown', function(e) {
+                if (e.target === delBtn || e.target === resizeHandle) return;
+                e.stopPropagation();
+                e.preventDefault();
+                isDragging = true;
+                const symRect = symEl.getBoundingClientRect();
+                const overlayRect = overlay.getBoundingClientRect();
+                dragOffsetX = e.clientX - symRect.left;
+                dragOffsetY = e.clientY - symRect.top;
+                symEl.setPointerCapture(e.pointerId);
+            });
+
+            symEl.addEventListener('pointermove', function(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                const overlayRect = overlay.getBoundingClientRect();
+                let newX = e.clientX - overlayRect.left - dragOffsetX;
+                let newY = e.clientY - overlayRect.top - dragOffsetY;
+                // 限制在画布范围内
+                newX = Math.max(0, Math.min(newX, overlayRect.width - symEl.offsetWidth));
+                newY = Math.max(0, Math.min(newY, overlayRect.height - symEl.offsetHeight));
+                symEl.style.left = newX + 'px';
+                symEl.style.top = newY + 'px';
+            });
+
+            symEl.addEventListener('pointerup', function(e) {
+                isDragging = false;
+            });
+
+            overlay.appendChild(symEl);
+
+            // 显示确认按钮
+            updateBakeBtn(containerId);
+        }
+
+        // 缩放处理
+        function startResize(e, symEl, symText) {
+            e.preventDefault();
+            const startFontSize = parseFloat(symText.style.fontSize);
+            const startX = e.clientX;
+            const startY = e.clientY;
+
+            function onMove(ev) {
+                ev.preventDefault();
+                const dx = ev.clientX - startX;
+                const dy = ev.clientY - startY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                // 对角线方向：右下放大，左上缩小
+                const delta = (dx + dy) * 0.5;
+                let newSize = Math.max(12, Math.min(200, startFontSize + delta));
+                symText.style.fontSize = newSize + 'px';
+                symEl.setAttribute('data-fontsize', newSize);
+            }
+
+            function onUp(ev) {
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', onUp);
+            }
+
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        }
+
+        // 更新确认按钮状态
+        function updateBakeBtn(containerId) {
+            const overlay = document.getElementById('overlay_' + containerId);
+            const bakeBtn = document.getElementById('bake_' + containerId);
+            if (!overlay || !bakeBtn) return;
+            const hasSymbols = overlay.querySelectorAll('.draggable-symbol').length > 0;
+            if (hasSymbols) {
+                bakeBtn.classList.add('show');
+            } else {
+                bakeBtn.classList.remove('show');
+            }
+        }
+
+        // 将浮动符号烘焙到canvas
+        function bakeSymbols(containerId) {
+            const overlay = document.getElementById('overlay_' + containerId);
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!overlay || !canvas) return;
+
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+
+            const ctx = canvas.getContext('2d');
+            const dpr = container.canvasState.dpr;
+            const symbols = overlay.querySelectorAll('.draggable-symbol');
+
+            if (symbols.length === 0) return;
+
+            // 将每个符号绘制到canvas
+            symbols.forEach(symEl => {
+                const symbol = symEl.getAttribute('data-symbol');
+                const color = symEl.getAttribute('data-color');
+                const fontSize = parseFloat(symEl.getAttribute('data-fontsize'));
+                const left = parseFloat(symEl.style.left);
+                const top = parseFloat(symEl.style.top);
+
+                ctx.save();
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.font = `${fontSize}px "Times New Roman", serif`;
+                ctx.fillStyle = color;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText(symbol, left + 4, top + 4);
+                ctx.restore();
+            });
+
+            // 清空overlay
+            overlay.innerHTML = '';
+            updateBakeBtn(containerId);
+
+            // 保存图像
+            const type = containerId.match(/^(wrong|analysis|correct)/)[1];
+            const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
+            saveCanvasImage(containerId, type, errId);
+        }
+
+        // ============================================
+        // 统计数据
+        // ============================================
+        function updateStats() {
+            const stats = {
+                total: errorData.length,
+                math: 0,
+                physics: 0,
+                english: 0,
+                chinese: 0,
+                chemistry: 0,
+                biology: 0
+            };
+
+            errorData.forEach(err => {
+                switch (err.subject) {
+                    case '数学': stats.math++; break;
+                    case '物理': stats.physics++; break;
+                    case '英语': stats.english++; break;
+                    case '语文': stats.chinese++; break;
+                    case '化学': stats.chemistry++; break;
+                    case '生物': stats.biology++; break;
+                }
+            });
+
+            document.getElementById('statsInfo').textContent = 
+                `错题总数：${stats.total} | 数学: ${stats.math} | 物理: ${stats.physics} | 英语: ${stats.english} | 语文: ${stats.chinese} | 化学: ${stats.chemistry} | 生物: ${stats.biology}`;
+        }
+
+        // ============================================
+        // 导入导出
+        // ============================================
+        function exportPDF() {
+            const filteredData = getFilteredData();
+            if (filteredData.length === 0) {
+                alert('暂无错题可导出');
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+            const subjects = [...new Set(filteredData.map(e => e.subject))];
+            const subjectStr = subjects.join('_');
+            const docTitle = `错题本_${dateStr}_${timeStr}_${subjectStr}_${filteredData.length}道`;
+
+            // 确保所有错题卡片已渲染（canvas才存在），然后收集canvas图片
+            const container = document.getElementById('errorCardsContainer');
+            document.getElementById('emptyState').style.display = 'none';
+            filteredData.forEach(err => {
+                if (!document.getElementById('card_' + err.id)) {
+                    renderErrorCard(err.id);
+                }
+            });
+            // 等canvas初始化完成后再截图
+            setTimeout(() => {
+                const canvasImages = {};
+                filteredData.forEach(err => {
+                    canvasImages[err.id] = {};
+                    ['wrong', 'analysis', 'correct'].forEach(type => {
+                        const canvasEl = document.getElementById('canvas_' + type + '_' + err.id);
+                        if (canvasEl) {
+                            canvasImages[err.id][type] = canvasEl.toDataURL('image/png');
+                        }
+                    });
+                });
+                openPrintWindow(docTitle, filteredData, canvasImages);
+            }, 300);
+            return;
+        }
+
+        function openPrintWindow(docTitle, filteredData, canvasImages) {
+
+            // 构建打印HTML
+            let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${docTitle}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+@page{margin:12mm 10mm;size:A4;}
+body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;color:#333;background:#fff;line-height:1.5;font-size:12px;}
+.err-page{page-break-after:always;padding-bottom:10px;}
+.err-page:last-child{page-break-after:auto;}
+.page-header{display:flex;justify-content:space-between;align-items:center;padding:6px 0 10px;border-bottom:2px solid #4a4a4a;margin-bottom:12px;}
+.page-header h2{font-size:18px;color:#4a4a4a;letter-spacing:2px;}
+.page-header .header-date{font-size:11px;color:#999;}
+.meta-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px;font-size:12px;padding-bottom:6px;border-bottom:1px dashed #ddd;}
+.meta-item{display:flex;align-items:center;gap:4px;}
+.meta-label{color:#999;}
+.meta-val{font-weight:600;}
+.stars-print{color:#F39C12;letter-spacing:1px;font-size:14px;}
+.tags{display:flex;gap:4px;flex-wrap:wrap;}
+.tag{background:#f5f0e6;color:#8b6914;padding:1px 8px;border-radius:8px;font-size:11px;}
+.section-title{font-size:14px;font-weight:700;padding:6px 14px;border-radius:4px;margin:10px 0 8px;display:flex;align-items:center;gap:6px;}
+.section-title.orange{background:#fef3e2;color:#b8860b;border-left:4px solid #e8a838;}
+.section-title.green{background:#e8f8f0;color:#1a7a4a;border-left:4px solid #27ae60;}
+.sub-title{font-size:12px;font-weight:600;margin:6px 0 4px;padding-left:8px;border-left:3px solid #ccc;}
+.sub-title.wrong-t{border-left-color:#E74C3C;color:#c0392b;}
+.sub-title.analysis-t{border-left-color:#F39C12;color:#b8860b;}
+.sub-title.correct-t{border-left-color:#2980B9;color:#2980B9;}
+.canvas-print{border:1px solid #d4c4a8;border-radius:4px;overflow:hidden;background:#fff;}
+.canvas-print img{width:100%;display:block;}
+.empty-hint{padding:20px;text-align:center;color:#ccc;font-size:11px;}
+.wrong-area{margin-bottom:8px;}
+.wrong-area .canvas-print img{max-height:340px;object-fit:contain;}
+.two-col{display:flex;gap:12px;}
+.two-col .col{flex:1;min-width:0;}
+.two-col .canvas-print img{max-height:220px;object-fit:contain;}
+.divider{border:none;border-top:1px dashed #d4c4a8;margin:8px 0;}
+</style></head><body>`;
+
+            filteredData.forEach((err, idx) => {
+                const stars = '★'.repeat(err.importance || 0) + '☆'.repeat(5 - (err.importance || 0));
+                const errorTags = (err.error_types || []).map(t => `<span class="tag">${t}</span>`).join('');
+                const otherReason = err.error_types && err.error_types.includes('其他原因') && err.other_reason ? `<span class="tag">${err.other_reason}</span>` : '';
+
+                // 取canvas图片：优先用当前画布截图，其次用保存的数据
+                const wrongImg = canvasImages[err.id]?.wrong || err.wrong_answer_image || '';
+                const analysisImg = canvasImages[err.id]?.analysis || err.analysis_image || '';
+                const correctImg = canvasImages[err.id]?.correct || err.correct_solution_image || '';
+
+                html += `<div class="err-page">`;
+
+                // 页面标题
+                html += `<div class="page-header"><h2>📋 错题本</h2><span class="header-date">${err.date || ''} | ${err.subject || ''}</span></div>`;
+
+                // 元信息
+                html += `<div class="meta-row">
+                    <div class="meta-item"><span class="meta-label">日期</span><span class="meta-val">${err.date || '-'}</span></div>
+                    <div class="meta-item"><span class="meta-label">科目</span><span class="meta-val">${err.subject || '-'}</span></div>
+                    <div class="meta-item"><span class="meta-label">来源</span><span class="meta-val">${err.source || '-'}</span></div>
+                    <div class="meta-item"><span class="meta-label">重要</span><span class="stars-print">${stars}</span></div>
+                </div>`;
+                if (err.error_types && err.error_types.length > 0) {
+                    html += `<div style="margin-bottom:6px;font-size:12px;"><span class="meta-label">错因</span> <div class="tags" style="display:inline-flex;gap:4px;">${errorTags}${otherReason}</div></div>`;
+                }
+                if (err.topic) {
+                    html += `<div style="margin-bottom:8px;font-size:12px;"><span class="meta-label">知识点</span> <span class="meta-val">${err.topic}</span></div>`;
+                }
+
+                // 题目 & 错题（占上半大部分）
+                html += `<div class="section-title orange">📝 题目 & 错题</div>`;
+                html += `<div class="wrong-area">`;
+                html += `<div class="sub-title wrong-t">❌ 错题区</div>`;
+                html += `<div class="canvas-print">`;
+                if (wrongImg) {
+                    html += `<img src="${wrongImg}" />`;
+                } else {
+                    html += `<div class="empty-hint">（无内容）</div>`;
+                }
+                html += `</div></div>`;
+
+                html += `<hr class="divider">`;
+
+                // 解析 & 正解（下半部分左右并排）
+                html += `<div class="section-title green">💡 解析 & 正解</div>`;
+                html += `<div class="two-col">`;
+                html += `<div class="col"><div class="sub-title analysis-t">🔍 错因分析</div><div class="canvas-print">`;
+                if (analysisImg) {
+                    html += `<img src="${analysisImg}" />`;
+                } else {
+                    html += `<div class="empty-hint">（无内容）</div>`;
+                }
+                html += `</div></div>`;
+                html += `<div class="col"><div class="sub-title correct-t">✅ 正确解答</div><div class="canvas-print">`;
+                if (correctImg) {
+                    html += `<img src="${correctImg}" />`;
+                } else {
+                    html += `<div class="empty-hint">（无内容）</div>`;
+                }
+                html += `</div></div>`;
+                html += `</div>`;
+                html += `</div>`;
+            });
+
+            html += `</body></html>`;
+
+            // 用隐藏iframe打印
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+            document.body.appendChild(iframe);
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+            iframe.onload = function() {
+                setTimeout(() => {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                    setTimeout(() => document.body.removeChild(iframe), 2000);
+                }, 500);
+            };
+        }
+
+        function exportJSON() {
+            if (errorData.length === 0) {
+                alert('暂无数据可导出');
+                return;
+            }
+
+            const dataStr = JSON.stringify(errorData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '错题本_' + new Date().toISOString().split('T')[0] + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        if (confirm(`确定要导入 ${imported.length} 道错题吗？这将覆盖现有数据。`)) {
+                            errorData = imported;
+                            saveToStorage();
+                            renderErrorList();
+                            updateStats();
+                            if (errorData.length > 0) {
+                                viewError(errorData[0].id);
+                            }
+                            alert('导入成功！');
+                        }
+                    } else {
+                        alert('文件格式错误');
+                    }
+                } catch (err) {
+                    alert('导入失败：' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ============================================
+        // 窗口大小变化时重新初始化Canvas
+        // ============================================
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function() {
+                // 重新初始化当前显示的卡片
+                if (currentEditingId) {
+                    const err = errorData.find(e => e.id === currentEditingId);
+                    if (err) {
+                        renderErrorCard(currentEditingId);
+                    }
+                }
+            }, 250);
+        });
+
+        // 阻止双击缩放
+        document.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>
