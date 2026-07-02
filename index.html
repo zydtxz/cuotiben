@@ -4184,23 +4184,108 @@
         // 导入导出
         // ============================================
         function exportPDF() {
-            const filteredData = getFilteredData();
-            if (filteredData.length === 0) {
+            // 检查是否有错题
+            if (errorData.length === 0) {
                 alert('暂无错题可导出');
                 return;
             }
 
+            // 检查当前筛选栏是否已经选了科目
+            const currentFilter = document.getElementById('filterSubject').value;
+            let dataToExport;
+
+            if (currentFilter) {
+                // 筛选栏已选科目，直接导出该科目
+                dataToExport = getFilteredData();
+                if (dataToExport.length === 0) {
+                    alert('该科目暂无错题');
+                    return;
+                }
+                doExportPDF(dataToExport);
+            } else {
+                // 没选科目，弹出选择窗口
+                showExportSubjectDialog();
+            }
+        }
+
+        function showExportSubjectDialog() {
+            // 统计各科错题数
+            const subjectCounts = {};
+            errorData.forEach(err => {
+                const s = err.subject || '未分类';
+                subjectCounts[s] = (subjectCounts[s] || 0) + 1;
+            });
+            const subjectList = Object.keys(subjectCounts).sort();
+
+            // 创建弹窗
+            let overlay = document.getElementById('exportSubjectOverlay');
+            if (overlay) overlay.remove();
+
+            overlay = document.createElement('div');
+            overlay.id = 'exportSubjectOverlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+            let optionsHTML = subjectList.map(s =>
+                `<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:4px 0;background:#f9f5ec;border-radius:8px;cursor:pointer;font-size:15px;">
+                    <input type="checkbox" class="export-subject-cb" value="${s}" checked style="width:20px;height:20px;cursor:pointer;">
+                    <span>${s}</span>
+                    <span style="margin-left:auto;color:#999;font-size:13px;">${subjectCounts[s]}道</span>
+                </label>`
+            ).join('');
+
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+                    <h3 style="font-size:18px;color:#4a4a4a;margin-bottom:4px;">📚 选择导出科目</h3>
+                    <p style="color:#999;font-size:13px;margin-bottom:16px;">勾选要导出的科目，每个科目单独生成一份PDF</p>
+                    ${optionsHTML}
+                    <div style="display:flex;gap:10px;margin-top:20px;">
+                        <button onclick="closeExportDialog()" style="flex:1;padding:12px;border:1px solid #ccc;background:#fff;border-radius:10px;font-size:15px;cursor:pointer;">取消</button>
+                        <button onclick="confirmExportSubjects()" style="flex:1;padding:12px;border:none;background:#8B7355;color:#fff;border-radius:10px;font-size:15px;cursor:pointer;font-weight:600;">开始导出</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        function closeExportDialog() {
+            const overlay = document.getElementById('exportSubjectOverlay');
+            if (overlay) overlay.remove();
+        }
+
+        function confirmExportSubjects() {
+            const checkboxes = document.querySelectorAll('.export-subject-cb:checked');
+            const selectedSubjects = Array.from(checkboxes).map(cb => cb.value);
+
+            if (selectedSubjects.length === 0) {
+                alert('请至少选择一个科目');
+                return;
+            }
+
+            closeExportDialog();
+
+            // 按科目依次导出
+            selectedSubjects.forEach((subject, idx) => {
+                setTimeout(() => {
+                    const subjectData = errorData.filter(e => (e.subject || '未分类') === subject);
+                    if (subjectData.length > 0) {
+                        doExportPDF(subjectData);
+                    }
+                }, idx * 1500); // 每科间隔1.5秒，避免同时打开多个打印窗口
+            });
+        }
+
+        function doExportPDF(dataToExport) {
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0];
             const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
-            const subjects = [...new Set(filteredData.map(e => e.subject))];
+            const subjects = [...new Set(dataToExport.map(e => e.subject))];
             const subjectStr = subjects.join('_');
-            const docTitle = `错题本_${dateStr}_${timeStr}_${subjectStr}_${filteredData.length}道`;
+            const docTitle = `错题本_${subjectStr}_${dateStr}_${dataToExport.length}道`;
 
             // 确保所有错题卡片已渲染（canvas才存在），然后收集canvas图片
             const container = document.getElementById('errorCardsContainer');
             document.getElementById('emptyState').style.display = 'none';
-            filteredData.forEach(err => {
+            dataToExport.forEach(err => {
                 if (!document.getElementById('card_' + err.id)) {
                     renderErrorCard(err.id);
                 }
@@ -4208,7 +4293,7 @@
             // 等canvas初始化完成后再截图
             setTimeout(() => {
                 const canvasImages = {};
-                filteredData.forEach(err => {
+                dataToExport.forEach(err => {
                     canvasImages[err.id] = {};
                     ['wrong', 'analysis', 'correct'].forEach(type => {
                         const canvasEl = document.getElementById('canvas_' + type + '_' + err.id);
@@ -4217,9 +4302,8 @@
                         }
                     });
                 });
-                openPrintWindow(docTitle, filteredData, canvasImages);
+                openPrintWindow(docTitle, dataToExport, canvasImages);
             }, 300);
-            return;
         }
 
         function openPrintWindow(docTitle, filteredData, canvasImages) {
