@@ -160,7 +160,7 @@
             min-height: calc(100vh - 130px);
         }
 
-        /* 侧边栏 - 平板优化 */
+        /* 侧边栏 - 抽屉式 */
         .sidebar {
             width: 300px;
             min-width: 300px;
@@ -169,9 +169,26 @@
             height: calc(100vh - 130px);
             overflow-y: auto;
             position: fixed;
-            left: 0;
+            left: -300px;
             top: 130px;
             -webkit-overflow-scrolling: touch;
+            z-index: 1001;
+            transition: left 0.3s ease;
+            box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        /* 抽屉遮罩 */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .sidebar-overlay.show {
+            display: block;
         }
 
         .sidebar-header {
@@ -260,7 +277,7 @@
         /* 内容区 */
         .content-area {
             flex: 1;
-            margin-left: 300px;
+            margin-left: 0;
             padding: 24px;
         }
 
@@ -282,20 +299,49 @@
             margin-bottom: 24px;
         }
 
-        /* 错题卡片 */
+        /* 错题卡片 - 纸质笔记本风格 */
         .error-card {
             background: var(--card-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            margin-bottom: 24px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            margin-bottom: 32px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             overflow: hidden;
+            position: relative;
+            padding-left: 40px;
+        }
+        /* 红色装订线 */
+        .error-card::before {
+            content: '';
+            position: absolute;
+            left: 36px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #CC4444;
+            opacity: 0.5;
+            z-index: 2;
+        }
+        /* 活页纸打孔装饰 */
+        .error-card::after {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 30px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid #CCC;
+            background: var(--bg-color);
+            box-shadow:
+                0 80px 0 0 var(--bg-color), 0 80px 0 0 2px #CCC,
+                0 160px 0 0 var(--bg-color), 0 160px 0 0 2px #CCC;
+            z-index: 2;
         }
 
         .error-card-header {
-            background: linear-gradient(135deg, #F5F0E6 0%, #EDE5D5 100%);
             padding: 18px 24px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
             display: flex;
             flex-wrap: wrap;
             gap: 16px;
@@ -385,41 +431,56 @@
             cursor: pointer;
         }
 
-        /* 卡片主体 */
+        /* 卡片主体 - 竖版布局 */
         .card-body {
             display: flex;
-            min-height: 500px;
+            flex-direction: column;
         }
 
         .card-column {
-            flex: 1;
             padding: 20px;
-            min-height: 500px;
         }
 
         .card-column:first-child {
-            border-right: 3px dashed var(--border-color);
+            border-right: none;
+            border-bottom: 2px dashed var(--border-color);
+        }
+
+        /* 题目区全宽大画布 */
+        .card-column.wrong-column .canvas-container canvas {
+            min-height: 400px;
+        }
+
+        /* 解析+正解并排区域 */
+        .analysis-correct-row {
+            display: flex;
+            gap: 16px;
+            padding: 0 20px 20px 20px;
+        }
+        .analysis-correct-row .analysis-col,
+        .analysis-correct-row .correct-col {
+            flex: 1;
+            min-width: 0;
+        }
+        .analysis-correct-row .canvas-container canvas {
+            min-height: 300px;
         }
 
         .column-header {
             font-weight: bold;
-            padding: 12px 18px;
-            border-radius: 10px;
-            margin-bottom: 18px;
-            text-align: center;
-            font-size: 1.15em;
+            padding: 10px 0;
+            margin-bottom: 14px;
+            font-size: 1.1em;
+            border-bottom: 2px solid var(--border-color);
+            text-align: left;
         }
 
         .column-header.left {
-            background: linear-gradient(90deg, #FDEBD0, #FCF3CF);
             color: #B9770E;
-            border: 2px solid #F0B27A;
         }
 
         .column-header.right {
-            background: linear-gradient(90deg, #D5F5E3, #D4EFDF);
             color: #1E8449;
-            border: 2px solid #82E0AA;
         }
 
         /* 子区域 */
@@ -464,7 +525,7 @@
         .canvas-container canvas {
             display: block;
             width: 100%;
-            min-height: 350px;
+            min-height: 400px;
             cursor: crosshair;
             touch-action: none;
             outline: none;
@@ -472,7 +533,7 @@
 
         /* 错因分析/正确解答区域也撑满 */
         .card-column .canvas-container canvas {
-            min-height: 350px;
+            min-height: 400px;
         }
 
         .canvas-area {
@@ -559,6 +620,124 @@
 
         .bake-btn.show {
             display: flex;
+        }
+
+        /* ========== 可拖动图片图层 ========== */
+        .draggable-image {
+            position: absolute;
+            pointer-events: auto;
+            cursor: move;
+            user-select: none;
+            touch-action: none;
+            z-index: 8;
+            border: 2px dashed rgba(39, 174, 96, 0.7);
+            border-radius: 4px;
+            background: rgba(39, 174, 96, 0.05);
+            transform-origin: center center;
+        }
+        .draggable-image img {
+            display: block;
+            max-width: none;
+            pointer-events: none;
+            -webkit-user-drag: none;
+        }
+        .draggable-image .img-delete {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            width: 26px;
+            height: 26px;
+            background: #E74C3C;
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            padding: 0;
+            pointer-events: auto;
+            z-index: 11;
+        }
+        .draggable-image .img-rotate-handle {
+            position: absolute;
+            top: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 26px;
+            height: 26px;
+            background: #F39C12;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            pointer-events: auto;
+            z-index: 11;
+            touch-action: none;
+        }
+        .draggable-image .img-rotate-line {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            width: 1px;
+            height: 10px;
+            background: #F39C12;
+            pointer-events: none;
+        }
+
+        /* ========== 画布缩放视口 ========== */
+        .canvas-viewport {
+            overflow: hidden;
+            position: relative;
+        }
+        .canvas-zoom-layer {
+            transform-origin: 0 0;
+            will-change: transform;
+        }
+        .zoom-indicator {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .zoom-indicator.visible {
+            opacity: 1;
+        }
+        .zoom-reset-btn {
+            position: absolute;
+            bottom: 8px;
+            right: 68px;
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            border: none;
+            padding: 4px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            cursor: pointer;
+            z-index: 20;
+            display: none;
+            touch-action: manipulation;
+        }
+        .zoom-reset-btn.visible {
+            display: block;
+        }
+        .zoom-reset-btn:active {
+            background: rgba(0,0,0,0.8);
         }
 
         /* Canvas工具栏 - 平板优化 */
@@ -807,7 +986,8 @@
             transform: scale(0.95);
         }
 
-        .error-card.collapsed .card-body {
+        .error-card.collapsed .card-body,
+        .error-card.collapsed .analysis-correct-row {
             display: none;
         }
 
@@ -980,24 +1160,11 @@
             color: #333;
         }
 
-        /* 响应式设计 - 平板横屏优化 */
+        /* 响应式设计 - 竖版布局优化 */
         @media (max-width: 1400px) {
             .sidebar {
                 width: 280px;
                 min-width: 280px;
-            }
-            .content-area {
-                margin-left: 280px;
-            }
-        }
-
-        @media (max-width: 1200px) {
-            .card-body {
-                flex-direction: column;
-            }
-            .card-column:first-child {
-                border-right: none;
-                border-bottom: 3px dashed var(--border-color);
             }
         }
 
@@ -1005,9 +1172,6 @@
             .sidebar {
                 width: 260px;
                 min-width: 260px;
-            }
-            .content-area {
-                margin-left: 260px;
             }
             .filter-bar {
                 gap: 10px;
@@ -1018,14 +1182,15 @@
             .header-field input[type="text"] {
                 width: 130px;
             }
+            .analysis-correct-row {
+                flex-direction: column;
+            }
         }
 
         @media (max-width: 768px) {
             .sidebar {
-                display: none;
-            }
-            .content-area {
-                margin-left: 0;
+                width: 260px;
+                min-width: 260px;
             }
             .toolbar {
                 padding: 10px 12px;
@@ -1053,6 +1218,18 @@
                 padding: 12px;
                 gap: 12px;
             }
+            .header-card {
+                padding-left: 0;
+            }
+            .error-card {
+                padding-left: 24px;
+            }
+            .error-card::before {
+                left: 20px;
+            }
+            .error-card::after {
+                display: none;
+            }
             .header-field {
                 width: 100%;
             }
@@ -1063,16 +1240,20 @@
             .star-rating {
                 flex-wrap: wrap;
             }
+            .analysis-correct-row {
+                flex-direction: column;
+                padding: 0 12px 12px 12px;
+            }
         }
 
-        /* 打印样式 */
+        /* 打印样式 - 竖版 */
         @media print {
             body {
                 background: white;
                 background-image: none;
             }
             
-            .toolbar, .filter-bar, .sidebar, .card-toggle {
+            .toolbar, .filter-bar, .sidebar, .sidebar-overlay, .card-toggle {
                 display: none !important;
             }
             
@@ -1091,23 +1272,41 @@
                 page-break-after: always;
                 page-break-inside: avoid;
                 margin-bottom: 30px;
+                padding-left: 30px;
             }
-            
+
             .error-card:last-child {
                 page-break-after: auto;
+            }
+
+            /* 打印时也显示红色装订线 */
+            .error-card::before {
+                left: 26px;
+                background: #CC4444;
+                opacity: 0.4;
+            }
+            .error-card::after {
+                left: 4px;
             }
             
             .card-body {
                 display: flex !important;
+                flex-direction: column !important;
             }
             
             .card-column {
                 min-height: auto;
-                padding: 15px;
+                padding: 10px 15px;
             }
-            
+
             .card-column:first-child {
-                border-right: 1px solid #CCC;
+                border-right: none;
+                border-bottom: 2px dashed #CCC;
+            }
+
+            .analysis-correct-row {
+                display: flex !important;
+                gap: 12px;
             }
             
             .canvas-container canvas {
@@ -1237,6 +1436,7 @@
 <body>
     <!-- 工具栏 -->
     <div class="toolbar">
+        <button class="toolbar-btn" onclick="toggleSidebar()" id="sidebarToggleBtn" style="font-size:1.1em;">📋 列表</button>
         <span class="toolbar-title">📒 错题本</span>
         <button class="toolbar-btn primary" onclick="addNewError()">
             ➕ 添加新错题
@@ -1280,8 +1480,10 @@
 
     <!-- 主容器 -->
     <div class="main-container">
+        <!-- 抽屉遮罩 -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
         <!-- 侧边栏 -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>📋 错题列表（共 <span id="sidebarCount">0</span> 道）</span>
                 <button onclick="deleteAllErrors()" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">🗑️ 一键清空</button>
@@ -1314,6 +1516,14 @@
         // ============================================
         // 初始化
         // ============================================
+        // 抽屉侧边栏切换
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             loadFromStorage();
             renderErrorList();
@@ -1522,6 +1732,13 @@
             renderErrorList();
             renderErrorCard(id);
             scrollToCard(id);
+            // 关闭抽屉侧边栏
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+            }
         }
 
         function scrollToCard(id) {
@@ -1654,8 +1871,8 @@
                     <div class="card-toggle" onclick="toggleCardCollapse(this)">折叠/展开</div>
                 </div>
                 <div class="card-body">
-                    <!-- 左栏：题目 & 错题 -->
-                    <div class="card-column">
+                    <!-- 题目 & 错题区 - 全宽大画布 -->
+                    <div class="card-column wrong-column">
                         <div class="column-header left">📝 题目 & 错题</div>
                         
                         <div class="sub-section">
@@ -1675,20 +1892,26 @@
                                            onchange="setStrokeWidth(this.value, 'wrong_${id}')"
                                            style="width:60px">
                                     <span class="size-label"><span id="size_${id}_wrong">3</span>px</span>
+                                    <button class="bake-btn" id="bake_wrong_${id}" onclick="bakeAll('wrong_${id}')">✓ 确认放置</button>
                                 </div>
                                 <div class="canvas-area">
-                                    <canvas id="canvas_wrong_${id}"></canvas>
+                                    <div class="canvas-viewport" id="viewport_wrong_${id}">
+                                        <div class="canvas-zoom-layer" id="zoomlayer_wrong_${id}">
+                                            <canvas id="canvas_wrong_${id}"></canvas>
+                                            <div class="symbols-overlay" id="overlay_wrong_${id}"></div>
+                                        </div>
+                                    </div>
+                                    <div class="zoom-indicator" id="zoom_wrong_${id}">100%</div>
+                                    <button class="zoom-reset-btn" id="zoomreset_wrong_${id}" onclick="resetZoom('wrong_${id}')">重置视图</button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 右栏：解析 & 正解 -->
-                    <div class="card-column">
-                        <div class="column-header right">💡 解析 & 正解</div>
-                        
-                        <div class="sub-section">
-                            <div class="sub-section-title analysis">📋 错因分析（手写）</div>
+                    <!-- 解析 & 正解 - 并排显示 -->
+                    <div class="analysis-correct-row">
+                        <div class="analysis-col">
+                            <div class="sub-section-title analysis" style="margin-bottom:8px;">📋 错因分析（手写）</div>
                             <div class="canvas-container" id="analysis_${id}" style="position:relative;">
                                 <div class="canvas-tools">
                                     <button onclick="setEraser(this, 'analysis_${id}')">🧹 橡皮</button>
@@ -1711,20 +1934,26 @@
                                     <button onclick="undoCanvas('analysis_${id}')">↶ 撤销</button>
                                     <button onclick="clearCanvas('analysis_${id}')">🗑️ 清空</button>
                                     <button class="symbol-toggle" onclick="toggleSymbolPanel('analysis_${id}')">📐 符号</button>
-                                    <button class="bake-btn" id="bake_analysis_${id}" onclick="bakeSymbols('analysis_${id}')">✓ 确认放置</button>
+                                    <button class="bake-btn" id="bake_analysis_${id}" onclick="bakeAll('analysis_${id}')">✓ 确认放置</button>
                                 </div>
                                 <div class="symbol-panel" id="symbols_analysis_${id}">
                                     ${['√','≥','≤','±','∞','π','θ','α','β','Δ','∑','∫','∈','⊆','∪','∩','→','←','↑','↓','²','³','ⁿ','½','∠','⊥','∥','≠','≈','∝'].map(s => `<button class="symbol-btn" onclick="insertSymbol('${id}', 'analysis', '${s}')">${s}</button>`).join('')}
                                 </div>
                                 <div class="canvas-area">
-                                    <canvas id="canvas_analysis_${id}"></canvas>
-                                    <div class="symbols-overlay" id="overlay_analysis_${id}"></div>
+                                    <div class="canvas-viewport" id="viewport_analysis_${id}">
+                                        <div class="canvas-zoom-layer" id="zoomlayer_analysis_${id}">
+                                            <canvas id="canvas_analysis_${id}"></canvas>
+                                            <div class="symbols-overlay" id="overlay_analysis_${id}"></div>
+                                        </div>
+                                    </div>
+                                    <div class="zoom-indicator" id="zoom_analysis_${id}">100%</div>
+                                    <button class="zoom-reset-btn" id="zoomreset_analysis_${id}" onclick="resetZoom('analysis_${id}')">重置视图</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="sub-section">
-                            <div class="sub-section-title correct">✅ 正确解答（手写）</div>
+                        <div class="correct-col">
+                            <div class="sub-section-title correct" style="margin-bottom:8px;">✅ 正确解答（手写）</div>
                             ${err.question_image ? `
                             <div style="margin-bottom:8px;padding:8px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;">
                                 <div style="font-size:12px;color:#666;margin-bottom:4px;">📷 题目参考：</div>
@@ -1758,7 +1987,7 @@
                                 <div class="symbol-panel" id="symbols_correct_${id}">
                                     ${['√','≥','≤','±','∞','π','θ','α','β','Δ','∑','∫','∈','⊆','∪','∩','→','←','↑','↓','²','³','ⁿ','½','∠','⊥','∥','≠','≈','∝'].map(s => `<button class="symbol-btn" onclick="insertSymbol('${id}', 'correct', '${s}')">${s}</button>`).join('')}
                                 </div>
-                                <div class="canvas-area">
+                                    <div class="canvas-area">
                                     <canvas id="canvas_correct_${id}"></canvas>
                                     <div class="symbols-overlay" id="overlay_correct_${id}"></div>
                                 </div>
@@ -3297,6 +3526,9 @@
                 e.preventDefault();
                 canvas.setPointerCapture(e.pointerId);
                 
+                // 防误触保护：未启用绘制工具时，不响应绘制
+                if (!container.canvasState.drawEnabled) return;
+                
                 isDrawing = true;
                 const pos = getPointerPos(e);
                 lastX = pos.x;
@@ -3463,7 +3695,8 @@
                 curvePoints: [], // 曲线经过的点
                 bgImageData: bgImageData || null, // 背景题目图片
                 displayWidth: displayWidth,
-                displayHeight: displayHeight
+                displayHeight: displayHeight,
+                drawEnabled: false // 默认不启用绘制，需点击画笔/橡皮按钮
             };
         }
 
@@ -3605,17 +3838,23 @@
             const container = document.getElementById(containerId);
             if (!container || !container.canvasState) return;
             
-            // 自动烘焙未确认的符号
+            // 自动烘焙未确认的符号和图片
             const overlay = document.getElementById('overlay_' + containerId);
             if (overlay && overlay.querySelectorAll('.draggable-symbol').length > 0) {
                 bakeSymbols(containerId);
             }
+            bakeImages(containerId);
 
             container.canvasState.isEraser = false;
             container.canvasState.currentShape = null;
+            container.canvasState.drawEnabled = true; // 启用绘制
             
             container.querySelectorAll('.canvas-tools button').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+            
+            // 更新光标为可绘制状态
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (canvas) canvas.style.cursor = 'crosshair';
         }
 
         function setEraser(btn, containerId) {
@@ -4101,7 +4340,8 @@
             const bakeBtn = document.getElementById('bake_' + containerId);
             if (!overlay || !bakeBtn) return;
             const hasSymbols = overlay.querySelectorAll('.draggable-symbol').length > 0;
-            if (hasSymbols) {
+            const hasImages = overlay.querySelectorAll('.draggable-image').length > 0;
+            if (hasSymbols || hasImages) {
                 bakeBtn.classList.add('show');
             } else {
                 bakeBtn.classList.remove('show');
@@ -4308,14 +4548,18 @@
 
         function openPrintWindow(docTitle, filteredData, canvasImages) {
 
-            // 构建打印HTML
+            // 构建打印HTML - 竖版纸质风格
             let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${docTitle}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 @page{margin:12mm 10mm;size:A4;}
-body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;color:#333;background:#fff;line-height:1.5;font-size:12px;}
-.err-page{page-break-after:always;padding-bottom:10px;}
+body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;color:#333;background:#FFF8E7;line-height:1.5;font-size:12px;}
+.err-page{page-break-after:always;padding-bottom:10px;position:relative;padding-left:36px;}
 .err-page:last-child{page-break-after:auto;}
+/* 装订线 */
+.err-page::before{content:'';position:absolute;left:32px;top:0;bottom:0;width:2px;background:#CC4444;opacity:0.4;}
+/* 打孔装饰 */
+.err-page::after{content:'';position:absolute;left:6px;top:24px;width:16px;height:16px;border-radius:50%;border:2px solid #CCC;background:#FFF8E7;box-shadow:0 70px 0 0 #FFF8E7,0 70px 0 0 2px #CCC,0 140px 0 0 #FFF8E7,0 140px 0 0 2px #CCC;}
 .page-header{display:flex;justify-content:space-between;align-items:center;padding:6px 0 10px;border-bottom:2px solid #4a4a4a;margin-bottom:12px;}
 .page-header h2{font-size:18px;color:#4a4a4a;letter-spacing:2px;}
 .page-header .header-date{font-size:11px;color:#999;}
@@ -4326,21 +4570,21 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
 .stars-print{color:#F39C12;letter-spacing:1px;font-size:14px;}
 .tags{display:flex;gap:4px;flex-wrap:wrap;}
 .tag{background:#f5f0e6;color:#8b6914;padding:1px 8px;border-radius:8px;font-size:11px;}
-.section-title{font-size:14px;font-weight:700;padding:6px 14px;border-radius:4px;margin:10px 0 8px;display:flex;align-items:center;gap:6px;}
-.section-title.orange{background:#fef3e2;color:#b8860b;border-left:4px solid #e8a838;}
-.section-title.green{background:#e8f8f0;color:#1a7a4a;border-left:4px solid #27ae60;}
+.section-title{font-size:14px;font-weight:700;padding:6px 0;margin:10px 0 8px;border-bottom:2px solid #d4c4a8;display:flex;align-items:center;gap:6px;}
+.section-title.orange{color:#b8860b;}
+.section-title.green{color:#1a7a4a;}
 .sub-title{font-size:12px;font-weight:600;margin:6px 0 4px;padding-left:8px;border-left:3px solid #ccc;}
 .sub-title.wrong-t{border-left-color:#E74C3C;color:#c0392b;}
 .sub-title.analysis-t{border-left-color:#F39C12;color:#b8860b;}
 .sub-title.correct-t{border-left-color:#2980B9;color:#2980B9;}
-.canvas-print{border:1px solid #d4c4a8;border-radius:4px;overflow:hidden;background:#fff;}
+.canvas-print{border:1px solid #d4c4a8;border-radius:2px;overflow:hidden;background:#fff;}
 .canvas-print img{width:100%;display:block;}
 .empty-hint{padding:20px;text-align:center;color:#ccc;font-size:11px;}
 .wrong-area{margin-bottom:8px;}
-.wrong-area .canvas-print img{max-height:340px;object-fit:contain;}
+.wrong-area .canvas-print img{max-height:360px;object-fit:contain;}
 .two-col{display:flex;gap:12px;}
 .two-col .col{flex:1;min-width:0;}
-.two-col .canvas-print img{max-height:220px;object-fit:contain;}
+.two-col .canvas-print img{max-height:260px;object-fit:contain;}
 .divider{border:none;border-top:1px dashed #d4c4a8;margin:8px 0;}
 </style></head><body>`;
 
@@ -4497,6 +4741,513 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
         document.addEventListener('dblclick', function(e) {
             e.preventDefault();
         });
+
+        // ============================================
+        // bakeAll - 烘焙所有浮动内容（符号+图片）到canvas
+        // ============================================
+        function bakeAll(containerId) {
+            const overlay = document.getElementById('overlay_' + containerId);
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!overlay || !canvas) return;
+
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+
+            // 先烘焙图片
+            bakeImages(containerId);
+
+            // 再烘焙符号
+            bakeSymbols(containerId);
+
+            // 确保清除所有浮动元素
+            overlay.innerHTML = '';
+            updateBakeBtn(containerId);
+
+            // 保存图像
+            const type = containerId.match(/^(wrong|analysis|correct)/)?.[1];
+            const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
+            if (type && errId) {
+                saveCanvasImage(containerId, type, errId);
+            }
+        }
+
+        // ============================================
+        // bakeImages - 将 .draggable-image 烘焙到canvas
+        // ============================================
+        function bakeImages(containerId) {
+            const overlay = document.getElementById('overlay_' + containerId);
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!overlay || !canvas) return;
+
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+
+            const ctx = canvas.getContext('2d');
+            const dpr = container.canvasState.dpr;
+            const images = overlay.querySelectorAll('.draggable-image');
+
+            if (images.length === 0) return;
+
+            // 逐个将图片绘制到canvas
+            let pendingCount = images.length;
+            const imagesToRemove = [];
+
+            images.forEach(function(imgEl) {
+                const img = imgEl.querySelector('img');
+                if (!img) {
+                    pendingCount--;
+                    imagesToRemove.push(imgEl);
+                    return;
+                }
+
+                // 获取位置和大小
+                const left = parseFloat(imgEl.style.left) || 0;
+                const top = parseFloat(imgEl.style.top) || 0;
+                const width = parseFloat(imgEl.style.width) || img.naturalWidth;
+                const height = parseFloat(imgEl.style.height) || img.naturalHeight;
+
+                // 获取旋转角度
+                const transform = imgEl.style.transform || '';
+                let rotation = 0;
+                const rotateMatch = transform.match(/rotate\(([^)]+)\)/);
+                if (rotateMatch) {
+                    rotation = parseFloat(rotateMatch[1]) * Math.PI / 180;
+                }
+
+                // 绘制到canvas（考虑缩放层）
+                // 获取缩放层的缩放比例和偏移
+                const zoomLayer = document.getElementById('zoomlayer_' + containerId);
+                let zoomScale = 1, panX = 0, panY = 0;
+                if (zoomLayer && zoomLayer._zoomState) {
+                    zoomScale = zoomLayer._zoomState.scale || 1;
+                    panX = zoomLayer._zoomState.panX || 0;
+                    panY = zoomLayer._zoomState.panY || 0;
+                }
+
+                // 计算实际canvas坐标（需要除以缩放比例）
+                const canvasX = (left - panX) / zoomScale;
+                const canvasY = (top - panY) / zoomScale;
+                const canvasW = width / zoomScale;
+                const canvasH = height / zoomScale;
+
+                ctx.save();
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+                if (rotation !== 0) {
+                    // 旋转变换
+                    const centerX = canvasX + canvasW / 2;
+                    const centerY = canvasY + canvasH / 2;
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(rotation);
+                    ctx.translate(-centerX, -centerY);
+                }
+
+                ctx.drawImage(img, canvasX, canvasY, canvasW, canvasH);
+                ctx.restore();
+
+                imagesToRemove.push(imgEl);
+            });
+
+            // 移除已烘焙的图片元素
+            imagesToRemove.forEach(el => el.remove());
+            updateBakeBtn(containerId);
+
+            // 保存
+            const type = containerId.match(/^(wrong|analysis|correct)/)?.[1];
+            const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
+            if (type && errId) {
+                saveCanvasImage(containerId, type, errId);
+            }
+        }
+
+        // ============================================
+        // resetZoom - 重置缩放层到100%无偏移
+        // ============================================
+        function resetZoom(containerId) {
+            const zoomLayer = document.getElementById('zoomlayer_' + containerId);
+            const zoomIndicator = document.getElementById('zoom_' + containerId);
+            const zoomResetBtn = document.getElementById('zoomreset_' + containerId);
+
+            if (zoomLayer) {
+                zoomLayer.style.transform = 'scale(1) translate(0px, 0px)';
+                // 存储缩放状态
+                zoomLayer._zoomState = { scale: 1, panX: 0, panY: 0 };
+            }
+            if (zoomIndicator) {
+                zoomIndicator.textContent = '100%';
+                zoomIndicator.classList.remove('visible');
+            }
+            if (zoomResetBtn) {
+                zoomResetBtn.classList.remove('visible');
+            }
+        }
+
+        // ============================================
+        // 双指缩放+拖动平移 - canvas-viewport
+        // ============================================
+        (function initViewportZoom() {
+            // 在DOM插入时初始化，使用MutationObserver监听新viewport
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(m) {
+                    m.addedNodes.forEach(function(node) {
+                        if (node.nodeType !== 1) return;
+                        // 查找所有 canvas-viewport
+                        const viewports = node.classList && node.classList.contains('canvas-viewport')
+                            ? [node]
+                            : Array.from(node.querySelectorAll('.canvas-viewport'));
+                        viewports.forEach(bindViewportGestures);
+                    });
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+
+            // 对已存在的viewport也绑定
+            document.querySelectorAll('.canvas-viewport').forEach(bindViewportGestures);
+        })();
+
+        function bindViewportGestures(viewport) {
+            if (viewport._zoomBound) return; // 避免重复绑定
+            viewport._zoomBound = true;
+
+            const activePointers = new Map(); // pointerId -> {x, y}
+            let initialPinchDist = 0;
+            let initialScale = 1;
+            let initialPanX = 0;
+            let initialPanY = 0;
+            let initialMidX = 0;
+            let initialMidY = 0;
+            let isPinching = false;
+
+            // 获取containerId
+            const containerId = viewport.id ? viewport.id.replace('viewport_', '') : '';
+
+            viewport.addEventListener('pointerdown', function(e) {
+                activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                if (activePointers.size === 2) {
+                    // 双指开始 - 进入缩放/平移模式
+                    isPinching = true;
+
+                    const pts = Array.from(activePointers.values());
+                    initialPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+                    initialMidX = (pts[0].x + pts[1].x) / 2;
+                    initialMidY = (pts[0].y + pts[1].y) / 2;
+
+                    // 读取当前缩放状态
+                    const zoomLayer = document.getElementById('zoomlayer_' + containerId);
+                    if (zoomLayer) {
+                        if (!zoomLayer._zoomState) {
+                            zoomLayer._zoomState = { scale: 1, panX: 0, panY: 0 };
+                        }
+                        initialScale = zoomLayer._zoomState.scale;
+                        initialPanX = zoomLayer._zoomState.panX;
+                        initialPanY = zoomLayer._zoomState.panY;
+                    }
+
+                    e.preventDefault();
+                }
+            });
+
+            viewport.addEventListener('pointermove', function(e) {
+                if (!activePointers.has(e.pointerId)) return;
+                activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                if (isPinching && activePointers.size === 2) {
+                    e.preventDefault();
+
+                    const pts = Array.from(activePointers.values());
+                    const currentDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+                    const currentMidX = (pts[0].x + pts[1].x) / 2;
+                    const currentMidY = (pts[0].y + pts[1].y) / 2;
+
+                    // 计算新缩放
+                    let newScale = initialScale * (currentDist / initialPinchDist);
+                    newScale = Math.max(0.5, Math.min(3, newScale));
+
+                    // 计算平移（双指中心移动导致的偏移）
+                    const panX = initialPanX + (currentMidX - initialMidX);
+                    const panY = initialPanY + (currentMidY - initialMidY);
+
+                    // 应用变换
+                    const zoomLayer = document.getElementById('zoomlayer_' + containerId);
+                    if (zoomLayer) {
+                        zoomLayer._zoomState = { scale: newScale, panX: panX, panY: panY };
+                        zoomLayer.style.transform = `scale(${newScale}) translate(${panX / newScale}px, ${panY / newScale}px)`;
+                    }
+
+                    // 更新缩放指示器
+                    const zoomIndicator = document.getElementById('zoom_' + containerId);
+                    if (zoomIndicator) {
+                        zoomIndicator.textContent = Math.round(newScale * 100) + '%';
+                        zoomIndicator.classList.add('visible');
+                    }
+
+                    // 显示/隐藏重置按钮
+                    const zoomResetBtn = document.getElementById('zoomreset_' + containerId);
+                    if (zoomResetBtn) {
+                        if (Math.abs(newScale - 1) > 0.01) {
+                            zoomResetBtn.classList.add('visible');
+                        } else {
+                            zoomResetBtn.classList.remove('visible');
+                        }
+                    }
+
+                    // 重置自动隐藏定时器
+                    clearTimeout(viewport._zoomHideTimer);
+                    viewport._zoomHideTimer = setTimeout(function() {
+                        const zi = document.getElementById('zoom_' + containerId);
+                        if (zi) zi.classList.remove('visible');
+                    }, 2000);
+                }
+            });
+
+            viewport.addEventListener('pointerup', function(e) {
+                activePointers.delete(e.pointerId);
+
+                if (activePointers.size < 2) {
+                    isPinching = false;
+                    // 缩放结束后2秒隐藏indicator
+                    clearTimeout(viewport._zoomHideTimer);
+                    viewport._zoomHideTimer = setTimeout(function() {
+                        const zi = document.getElementById('zoom_' + containerId);
+                        if (zi) zi.classList.remove('visible');
+                    }, 2000);
+                }
+            });
+
+            viewport.addEventListener('pointercancel', function(e) {
+                activePointers.delete(e.pointerId);
+                if (activePointers.size < 2) {
+                    isPinching = false;
+                }
+            });
+        }
+
+        // ============================================
+        // addDraggableImage - 在canvas上添加浮动图片
+        // ============================================
+        function addDraggableImage(containerId, dataUrl) {
+            const overlay = document.getElementById('overlay_' + containerId);
+            if (!overlay) return;
+
+            const container = document.getElementById(containerId);
+            if (!container || !container.canvasState) return;
+
+            const canvas = document.getElementById('canvas_' + containerId);
+            if (!canvas) return;
+
+            // 创建浮动图片容器
+            const imgWrap = document.createElement('div');
+            imgWrap.className = 'draggable-image';
+            imgWrap.style.position = 'absolute';
+
+            // 创建图片
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.draggable = false;
+
+            // 图片加载后设置初始大小和位置
+            img.onload = function() {
+                const canvasRect = canvas.getBoundingClientRect();
+                // 获取缩放状态
+                const zoomLayer = document.getElementById('zoomlayer_' + containerId);
+                let zoomScale = 1;
+                if (zoomLayer && zoomLayer._zoomState) {
+                    zoomScale = zoomLayer._zoomState.scale;
+                }
+
+                // 初始大小：适配画布的50%宽度
+                const maxW = (canvasRect.width / zoomScale) * 0.5;
+                const ratio = img.naturalHeight / img.naturalWidth;
+                let displayW = Math.min(img.naturalWidth, maxW);
+                let displayH = displayW * ratio;
+
+                imgWrap.style.width = displayW + 'px';
+                imgWrap.style.height = displayH + 'px';
+
+                // 居中放置
+                const startX = (canvasRect.width / zoomScale - displayW) / 2;
+                const startY = (canvasRect.height / zoomScale - displayH) / 2;
+                imgWrap.style.left = startX + 'px';
+                imgWrap.style.top = startY + 'px';
+
+                // 存储原始尺寸
+                imgWrap._imgScale = 1;
+                imgWrap._rotation = 0;
+            };
+
+            // 初始占位（图片加载前）
+            imgWrap.style.left = '50px';
+            imgWrap.style.top = '50px';
+            imgWrap.style.width = '200px';
+            imgWrap.style.height = '150px';
+            imgWrap._imgScale = 1;
+            imgWrap._rotation = 0;
+
+            imgWrap.appendChild(img);
+
+            // 删除按钮
+            const delBtn = document.createElement('button');
+            delBtn.className = 'img-delete';
+            delBtn.textContent = '×';
+            delBtn.addEventListener('pointerdown', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                imgWrap.remove();
+                updateBakeBtn(containerId);
+            });
+            imgWrap.appendChild(delBtn);
+
+            // 旋转连线
+            const rotateLine = document.createElement('div');
+            rotateLine.className = 'img-rotate-line';
+            imgWrap.appendChild(rotateLine);
+
+            // 旋转手柄
+            const rotateHandle = document.createElement('div');
+            rotateHandle.className = 'img-rotate-handle';
+            rotateHandle.textContent = '↻';
+            rotateHandle.addEventListener('pointerdown', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                startImageRotate(e, imgWrap);
+            });
+            imgWrap.appendChild(rotateHandle);
+
+            // ---- 拖动 + 双指缩放 ----
+            let isDragging = false;
+            let dragOffsetX = 0, dragOffsetY = 0;
+            let imgActivePointers = new Map(); // pointerId -> {x, y}
+            let imgInitialPinchDist = 0;
+            let imgInitialScale = 1;
+
+            imgWrap.addEventListener('pointerdown', function(e) {
+                if (e.target === delBtn || e.target === rotateHandle) return;
+                e.stopPropagation();
+                e.preventDefault();
+
+                imgActivePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                if (imgActivePointers.size === 1) {
+                    // 单指：拖动
+                    isDragging = true;
+                    const rect = imgWrap.getBoundingClientRect();
+                    dragOffsetX = e.clientX - rect.left;
+                    dragOffsetY = e.clientY - rect.top;
+                    imgWrap.setPointerCapture(e.pointerId);
+                } else if (imgActivePointers.size === 2) {
+                    // 双指：缩放图片
+                    isDragging = false;
+                    const pts = Array.from(imgActivePointers.values());
+                    imgInitialPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+                    imgInitialScale = imgWrap._imgScale || 1;
+                }
+            });
+
+            imgWrap.addEventListener('pointermove', function(e) {
+                if (!imgActivePointers.has(e.pointerId)) return;
+                imgActivePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                if (isDragging && imgActivePointers.size === 1) {
+                    // 单指拖动
+                    e.preventDefault();
+                    const overlayRect = overlay.getBoundingClientRect();
+                    let newX = e.clientX - overlayRect.left - dragOffsetX;
+                    let newY = e.clientY - overlayRect.top - dragOffsetY;
+                    // 获取缩放状态
+                    const zoomLayer = document.getElementById('zoomlayer_' + containerId);
+                    let zoomScale = 1, panX = 0, panY = 0;
+                    if (zoomLayer && zoomLayer._zoomState) {
+                        zoomScale = zoomLayer._zoomState.scale;
+                        panX = zoomLayer._zoomState.panX;
+                        panY = zoomLayer._zoomState.panY;
+                    }
+                    // 补偿缩放层偏移
+                    newX = (newX - panX) / zoomScale;
+                    newY = (newY - panY) / zoomScale;
+
+                    imgWrap.style.left = newX + 'px';
+                    imgWrap.style.top = newY + 'px';
+                } else if (imgActivePointers.size === 2) {
+                    // 双指缩放图片
+                    e.preventDefault();
+                    const pts = Array.from(imgActivePointers.values());
+                    const currentDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+                    const scaleRatio = currentDist / imgInitialPinchDist;
+                    let newScale = imgInitialScale * scaleRatio;
+                    newScale = Math.max(0.2, Math.min(5, newScale));
+
+                    imgWrap._imgScale = newScale;
+
+                    // 更新图片大小（基于原始图片尺寸）
+                    const baseW = img.naturalWidth;
+                    const baseH = img.naturalHeight;
+                    // 计算初始适配大小
+                    const canvasRect = canvas.getBoundingClientRect();
+                    const zoomLayer2 = document.getElementById('zoomlayer_' + containerId);
+                    let zs2 = 1;
+                    if (zoomLayer2 && zoomLayer2._zoomState) zs2 = zoomLayer2._zoomState.scale;
+                    const maxW = (canvasRect.width / zs2) * 0.5;
+                    const fitScale = Math.min(1, maxW / baseW);
+                    const displayW = baseW * fitScale * newScale;
+                    const displayH = baseH * fitScale * newScale;
+
+                    imgWrap.style.width = displayW + 'px';
+                    imgWrap.style.height = displayH + 'px';
+                }
+            });
+
+            imgWrap.addEventListener('pointerup', function(e) {
+                imgActivePointers.delete(e.pointerId);
+                if (imgActivePointers.size === 0) {
+                    isDragging = false;
+                } else if (imgActivePointers.size === 1) {
+                    // 从双指变回单指，不启动拖动
+                    isDragging = false;
+                }
+            });
+
+            imgWrap.addEventListener('pointercancel', function(e) {
+                imgActivePointers.delete(e.pointerId);
+                if (imgActivePointers.size < 2) {
+                    isDragging = false;
+                }
+            });
+
+            overlay.appendChild(imgWrap);
+            updateBakeBtn(containerId);
+        }
+
+        // 旋转手柄交互
+        function startImageRotate(e, imgWrap) {
+            e.preventDefault();
+            const rect = imgWrap.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+            const startRotation = imgWrap._rotation || 0;
+
+            function onMove(ev) {
+                ev.preventDefault();
+                const currentAngle = Math.atan2(ev.clientY - centerY, ev.clientX - centerX);
+                let delta = (currentAngle - startAngle) * 180 / Math.PI;
+                let newRotation = startRotation + delta;
+                imgWrap._rotation = newRotation;
+                // 保留已有的缩放transform
+                const existingTransform = imgWrap.style.transform || '';
+                const scaleMatch = existingTransform.match(/scale\([^)]*\)/);
+                const scalePart = scaleMatch ? scaleMatch[0] : '';
+                imgWrap.style.transform = (scalePart ? scalePart + ' ' : '') + `rotate(${newRotation}deg)`;
+            }
+
+            function onUp(ev) {
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', onUp);
+            }
+
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        }
     </script>
 </body>
 </html>
