@@ -31,6 +31,9 @@
             touch-action: manipulation;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: none;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
         }
 
         body {
@@ -47,6 +50,8 @@
             min-height: 100vh;
             color: var(--primary-color);
             font-size: 16px;
+            display: flex;
+            flex-direction: column;
         }
 
         /* 工具栏 - 平板优化 */
@@ -158,6 +163,8 @@
             display: flex;
             margin-top: 130px;
             min-height: calc(100vh - 130px);
+            width: 100%;
+            flex: 1;
         }
 
         /* 侧边栏 - 抽屉式 */
@@ -278,7 +285,9 @@
         .content-area {
             flex: 1;
             margin-left: 0;
-            padding: 24px;
+            padding: 12px;
+            width: 100%;
+            min-height: calc(100vh - 130px);
         }
 
         /* 空状态 */
@@ -304,7 +313,7 @@
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 2px;
-            margin-bottom: 32px;
+            margin-bottom: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             overflow: hidden;
             position: relative;
@@ -340,11 +349,11 @@
         }
 
         .error-card-header {
-            padding: 18px 24px;
+            padding: 14px 16px;
             border-bottom: 2px solid var(--border-color);
             display: flex;
             flex-wrap: wrap;
-            gap: 16px;
+            gap: 12px;
             align-items: center;
         }
 
@@ -438,7 +447,7 @@
         }
 
         .card-column {
-            padding: 20px;
+            padding: 12px;
         }
 
         .card-column:first-child {
@@ -454,8 +463,8 @@
         /* 解析+正解并排区域 */
         .analysis-correct-row {
             display: flex;
-            gap: 16px;
-            padding: 0 20px 20px 20px;
+            gap: 12px;
+            padding: 0 12px 12px 12px;
         }
         .analysis-correct-row .analysis-col,
         .analysis-correct-row .correct-col {
@@ -1213,6 +1222,10 @@
             }
             .main-container {
                 margin-top: 140px;
+                min-height: calc(100vh - 140px);
+            }
+            .content-area {
+                min-height: calc(100vh - 140px);
             }
             .error-card-header {
                 padding: 12px;
@@ -2065,7 +2078,8 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const dataUrl = e.target.result;
-                openImageAdjustModal(dataUrl, id);
+                // 直接作为浮动图层添加到canvas上（不再弹窗调整）
+                addDraggableImage('wrong_' + id, dataUrl);
             };
             reader.readAsDataURL(file);
             input.value = ''; // 重置input，允许重复上传同一文件
@@ -3529,6 +3543,9 @@
                 // 防误触保护：未启用绘制工具时，不响应绘制
                 if (!container.canvasState.drawEnabled) return;
                 
+                // 每次开始新笔画前保存当前画布状态，以支持逐步撤销
+                saveHistory(containerId);
+                
                 isDrawing = true;
                 const pos = getPointerPos(e);
                 lastX = pos.x;
@@ -3788,12 +3805,14 @@
             const container = document.getElementById(containerId);
             if (!container || !container.canvasState) return;
             
+            // 保存当前状态以便撤销清空操作
+            saveHistory(containerId);
+            
             // 同时清空浮动符号层
             const overlay = document.getElementById('overlay_' + containerId);
             if (overlay) overlay.innerHTML = '';
             
-            // 清空画布并重绘背景图
-            container.canvasState.history = [];
+            // 清空画布并重绘背景图（保留历史记录以支持撤销）
             redrawBackground(containerId);
             
             updateBakeBtn(containerId);
