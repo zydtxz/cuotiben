@@ -6,6 +6,9 @@
     <title>错题本 - 学生错题整理工具</title>
     <!-- Tesseract.js OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- jsPDF + html2canvas: 直接生成PDF文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -31,9 +34,6 @@
             touch-action: manipulation;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: none;
-            width: 100%;
-            height: 100%;
-            overflow-x: hidden;
         }
 
         body {
@@ -50,8 +50,6 @@
             min-height: 100vh;
             color: var(--primary-color);
             font-size: 16px;
-            display: flex;
-            flex-direction: column;
         }
 
         /* 工具栏 - 平板优化 */
@@ -163,8 +161,6 @@
             display: flex;
             margin-top: 130px;
             min-height: calc(100vh - 130px);
-            width: 100%;
-            flex: 1;
         }
 
         /* 侧边栏 - 抽屉式 */
@@ -285,9 +281,7 @@
         .content-area {
             flex: 1;
             margin-left: 0;
-            padding: 12px;
-            width: 100%;
-            min-height: calc(100vh - 130px);
+            padding: 24px;
         }
 
         /* 空状态 */
@@ -313,7 +307,7 @@
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 2px;
-            margin-bottom: 16px;
+            margin-bottom: 32px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             overflow: hidden;
             position: relative;
@@ -349,11 +343,11 @@
         }
 
         .error-card-header {
-            padding: 14px 16px;
+            padding: 18px 24px;
             border-bottom: 2px solid var(--border-color);
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 16px;
             align-items: center;
         }
 
@@ -447,7 +441,7 @@
         }
 
         .card-column {
-            padding: 12px;
+            padding: 20px;
         }
 
         .card-column:first-child {
@@ -463,8 +457,8 @@
         /* 解析+正解并排区域 */
         .analysis-correct-row {
             display: flex;
-            gap: 12px;
-            padding: 0 12px 12px 12px;
+            gap: 16px;
+            padding: 0 20px 20px 20px;
         }
         .analysis-correct-row .analysis-col,
         .analysis-correct-row .correct-col {
@@ -646,6 +640,8 @@
         }
         .draggable-image img {
             display: block;
+            width: 100%;
+            height: 100%;
             max-width: none;
             pointer-events: none;
             -webkit-user-drag: none;
@@ -699,6 +695,109 @@
             background: #F39C12;
             pointer-events: none;
         }
+        .draggable-image .img-resize-handle {
+            position: absolute;
+            bottom: -12px;
+            right: -12px;
+            width: 26px;
+            height: 26px;
+            background: #3498DB;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: nwse-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: white;
+            pointer-events: auto;
+            z-index: 11;
+            touch-action: none;
+        }
+
+        /* 裁切按钮 */
+        .draggable-image .img-crop-btn {
+            position: absolute;
+            top: -12px;
+            left: -12px;
+            width: 26px;
+            height: 26px;
+            background: #9B59B6;
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 11;
+        }
+        /* 已放置状态：隐藏边框和手柄 */
+        .draggable-image.placed {
+            border: none !important;
+            background: transparent !important;
+        }
+        .draggable-image.placed .img-delete,
+        .draggable-image.placed .img-rotate-handle,
+        .draggable-image.placed .img-rotate-line,
+        .draggable-image.placed .img-resize-handle,
+        .draggable-image.placed .img-crop-btn {
+            display: none !important;
+        }
+
+        /* 裁切遮罩 */
+        .crop-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 9;
+        }
+        .crop-overlay-mask {
+            position: absolute;
+            background: rgba(0,0,0,0.5);
+        }
+        /* 裁切手柄 */
+        .crop-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #9B59B6;
+            border: 2px solid white;
+            border-radius: 2px;
+            z-index: 12;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        .crop-handle.top-left { top: -8px; left: -8px; cursor: nwse-resize; }
+        .crop-handle.top-right { top: -8px; right: -8px; cursor: nesw-resize; }
+        .crop-handle.bottom-left { bottom: -8px; left: -8px; cursor: nesw-resize; }
+        .crop-handle.bottom-right { bottom: -8px; right: -8px; cursor: nwse-resize; }
+        .crop-handle.top-center { top: -8px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .crop-handle.bottom-center { bottom: -8px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .crop-handle.left-center { top: 50%; left: -8px; transform: translateY(-50%); cursor: ew-resize; }
+        .crop-handle.right-center { top: 50%; right: -8px; transform: translateY(-50%); cursor: ew-resize; }
+        /* 裁切确认按钮 */
+        .crop-confirm-bar {
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 13;
+        }
+        .crop-confirm-bar button {
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: none;
+            font-size: 12px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .crop-confirm-btn { background: #27AE60; color: white; }
+        .crop-cancel-btn { background: #95A5A6; color: white; }
 
         /* ========== 画布缩放视口 ========== */
         .canvas-viewport {
@@ -1222,10 +1321,6 @@
             }
             .main-container {
                 margin-top: 140px;
-                min-height: calc(100vh - 140px);
-            }
-            .content-area {
-                min-height: calc(100vh - 140px);
             }
             .error-card-header {
                 padding: 12px;
@@ -1466,6 +1561,12 @@
         <button class="toolbar-btn" onclick="backupData()">
             📦 备份
         </button>
+        <button class="toolbar-btn" onclick="githubBackup()" id="githubBackupBtn" title="备份到GitHub">
+            ☁️ 云备份
+        </button>
+        <button class="toolbar-btn" onclick="showErrorBookSettings()" title="错题本设置">
+            ⚙️ 设置
+        </button>
         <input type="file" id="importFile" class="hidden-input" accept=".json" onchange="importJSON(event)">
         <div class="stats-info" id="statsInfo">
             错题总数：0 | 数学: 0 | 物理: 0 | 英语: 0 | 语文: 0 | 化学: 0 | 生物: 0
@@ -1504,6 +1605,11 @@
             <div class="error-list" id="errorList">
                 <!-- 动态生成 -->
             </div>
+            <div style="padding:12px 20px;border-top:1px solid var(--border-color);margin-top:auto;">
+                <button onclick="showTrashModal()" style="width:100%;padding:10px;border:1px solid var(--border-color);background:var(--card-bg);border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:6px;justify-content:center;">
+                    🗑️ 回收站 <span id="trashCount" style="background:#e74c3c;color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;display:none;">0</span>
+                </button>
+            </div>
         </div>
 
         <!-- 内容区 -->
@@ -1539,8 +1645,10 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             loadFromStorage();
+            cleanExpiredTrash();
             renderErrorList();
             updateStats();
+            updateTrashCount();
         });
 
         // localStorage 操作
@@ -1653,6 +1761,7 @@
                 wrong_answer_image: '',
                 analysis_image: '',
                 correct_solution_image: '',
+                topic_image: '',
                 created_at: new Date().toISOString()
             };
             errorData.unshift(newError);
@@ -1670,6 +1779,15 @@
                 if (field === 'subject' || field === 'importance') {
                     renderErrorList();
                 }
+                // 实时更新当前卡片上的星星显示
+                if (field === 'importance') {
+                    const starsContainer = document.getElementById('stars_' + id);
+                    if (starsContainer) {
+                        starsContainer.querySelectorAll('.star').forEach((star, idx) => {
+                            star.classList.toggle('active', idx < value);
+                        });
+                    }
+                }
                 updateStats();
             }
         }
@@ -1684,36 +1802,43 @@
                              `日期：${err.date}\n` +
                              `来源：${err.source || '无'}\n` +
                              `知识点：${err.topic || '无'}\n\n` +
-                             `删除后无法恢复，请确认！`;
+                             `删除后可在回收站中恢复（30天内），请确认！`;
             
             if (confirm(confirmMsg)) {
-                // 第二次确认
-                if (confirm('这是最后确认：真的要删除吗？')) {
-                    // 第三次确认：密码验证
-                    const password = prompt('请输入删除密码：');
-                    if (password === 'delete123') {
-                        errorData = errorData.filter(e => e.id !== id);
-                        saveToStorage();
-                        renderErrorList();
-                        
-                        const card = document.getElementById('card_' + id);
-                        if (card) {
-                            card.remove();
-                        }
-                        
-                        if (currentEditingId === id) {
-                            currentEditingId = null;
-                            if (errorData.length === 0) {
-                                document.getElementById('emptyState').style.display = 'block';
-                            } else {
-                                viewError(errorData[0].id);
-                            }
-                        }
-                        updateStats();
-                        alert('删除成功');
-                    } else if (password !== null) {
-                        alert('密码错误，删除取消');
+                // 第二次确认：密码验证
+                const password = prompt('请输入删除密码：');
+                const deletePassword = localStorage.getItem('errorBookDeletePassword') || 'delete123';
+                if (password === deletePassword) {
+                    // 将错题移入回收站（而非永久删除）
+                    const trashData = loadTrashData();
+                    const trashedErr = JSON.parse(JSON.stringify(err));
+                    trashedErr.deletedAt = new Date().toISOString();
+                    trashData.push(trashedErr);
+                    saveTrashData(trashData);
+                    
+                    // 从主数据中移除
+                    errorData = errorData.filter(e => e.id !== id);
+                    saveToStorage();
+                    renderErrorList();
+                    
+                    const card = document.getElementById('card_' + id);
+                    if (card) {
+                        card.remove();
                     }
+                    
+                    if (currentEditingId === id) {
+                        currentEditingId = null;
+                        if (errorData.length === 0) {
+                            document.getElementById('emptyState').style.display = 'block';
+                        } else {
+                            viewError(errorData[0].id);
+                        }
+                    }
+                    updateStats();
+                    updateTrashCount();
+                    alert('已移入回收站，30天内可恢复');
+                } else if (password !== null) {
+                    alert('密码错误，删除取消');
                 }
             }
         }
@@ -1723,10 +1848,20 @@
                 alert('当前没有错题记录');
                 return;
             }
-            if (!confirm(`确定要清空全部 ${errorData.length} 道错题吗？\n\n此操作不可恢复！`)) return;
-            if (!confirm('最后确认：真的要删除全部错题吗？')) return;
+            if (!confirm(`确定要清空全部 ${errorData.length} 道错题吗？\n\n删除后可在回收站中恢复（30天内）！`)) return;
             const password = prompt('请输入删除密码：');
-            if (password === 'delete123') {
+            const deletePassword2 = localStorage.getItem('errorBookDeletePassword') || 'delete123';
+            if (password === deletePassword2) {
+                // 将所有错题移入回收站
+                const trashData = loadTrashData();
+                const now = new Date().toISOString();
+                errorData.forEach(err => {
+                    const trashedErr = JSON.parse(JSON.stringify(err));
+                    trashedErr.deletedAt = now;
+                    trashData.push(trashedErr);
+                });
+                saveTrashData(trashData);
+                
                 errorData = [];
                 saveToStorage();
                 renderErrorList();
@@ -1734,7 +1869,8 @@
                 document.getElementById('errorCardsContainer').innerHTML = '';
                 document.getElementById('emptyState').style.display = 'block';
                 updateStats();
-                alert('已全部清空');
+                updateTrashCount();
+                alert('已全部移入回收站');
             } else if (password !== null) {
                 alert('密码错误，删除取消');
             }
@@ -1876,10 +2012,28 @@
                                onchange="updateError('${id}', 'other_reason', this.value)">
                         ` : ''}
                     </div>
-                    <div class="header-field">
+                    <div class="header-field topic-field">
                         <label>知识点：</label>
-                        <input type="text" value="${err.topic}" placeholder="输入知识点"
-                               style="width:200px" onchange="updateError('${id}', 'topic', this.value)">
+                        <input type="text" value="${err.topic}" placeholder="输入知识点（文字）"
+                               style="width:160px" onchange="updateError('${id}', 'topic', this.value)">
+                        <button onclick="toggleTopicCanvas('${id}')" style="margin-left:4px;font-size:12px;padding:2px 8px;">✏️ 手写</button>
+                        <div id="topic_canvas_wrap_${id}" style="display:none;margin-top:4px;">
+                            <div class="canvas-tools" style="background:transparent;border:none;padding:2px 0;box-shadow:none;gap:4px;">
+                                <button class="active" onclick="setPen(this, 'topic_${id}')">✏️</button>
+                                <button onclick="setEraser(this, 'topic_${id}')">🧹</button>
+                                <button onclick="undoCanvas('topic_${id}')">↶</button>
+                                <button onclick="clearCanvas('topic_${id}')">🗑️</button>
+                                <button class="bake-btn" onclick="bakeAll('topic_${id}')">✓</button>
+                            </div>
+                            <div class="canvas-area" style="height:50px;">
+                                <div class="canvas-viewport" id="viewport_topic_${id}">
+                                    <div class="canvas-zoom-layer" id="zoomlayer_topic_${id}">
+                                        <canvas id="canvas_topic_${id}"></canvas>
+                                        <div class="symbols-overlay" id="overlay_topic_${id}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-toggle" onclick="toggleCardCollapse(this)">折叠/展开</div>
                 </div>
@@ -2017,6 +2171,7 @@
                 initCanvas('wrong_' + id, err.wrong_answer_image, 'wrong', err.question_image);
                 initCanvas('analysis_' + id, err.analysis_image, 'analysis');
                 initCanvas('correct_' + id, err.correct_solution_image, 'correct');
+                initCanvas('topic_' + id, err.topic_image || '', 'topic');
                 
                 // 如果已有题目图片，显示OCR按钮
                 if (err.question_image) {
@@ -2054,6 +2209,26 @@
         function toggleCardCollapse(btn) {
             const card = btn.closest('.error-card');
             card.classList.toggle('collapsed');
+        }
+
+        function toggleTopicCanvas(id) {
+            const wrap = document.getElementById('topic_canvas_wrap_' + id);
+            if (wrap) {
+                const isHidden = wrap.style.display === 'none';
+                wrap.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    // 展开后初始化画布尺寸
+                    const canvas = document.getElementById('canvas_topic_' + id);
+                    if (canvas) {
+                        const rect = canvas.parentElement.getBoundingClientRect();
+                        if (rect.width > 0 && rect.height > 0) {
+                            canvas.width = rect.width;
+                            canvas.height = rect.height;
+                            canvas.dispatchEvent(new Event('canvas-resize'));
+                        }
+                    }
+                }
+            }
         }
 
         // ============================================
@@ -3821,9 +3996,9 @@
         }
 
         function saveCanvasImage(containerId, type, errId) {
-            // 先保存历史记录
-            saveHistory(containerId);
-            
+            // 先将浮动图片烘焙到canvas（真正烘焙到像素）
+            bakeImages(containerId);
+
             const canvas = document.getElementById('canvas_' + containerId);
             if (!canvas) return;
             
@@ -3831,7 +4006,8 @@
             const fieldMap = {
                 'wrong': 'wrong_answer_image',
                 'analysis': 'analysis_image',
-                'correct': 'correct_solution_image'
+                'correct': 'correct_solution_image',
+                'topic': 'topic_image'
             };
             
             updateError(errId, fieldMap[type], dataUrl);
@@ -3857,12 +4033,17 @@
             const container = document.getElementById(containerId);
             if (!container || !container.canvasState) return;
             
-            // 自动烘焙未确认的符号和图片
+            // 自动烘焙未确认的符号，图片标记为已放置
             const overlay = document.getElementById('overlay_' + containerId);
             if (overlay && overlay.querySelectorAll('.draggable-symbol').length > 0) {
                 bakeSymbols(containerId);
             }
-            bakeImages(containerId);
+            // 图片不烘焙，改为标记已放置状态
+            if (overlay) {
+                overlay.querySelectorAll('.draggable-image:not(.placed)').forEach(function(imgEl) {
+                    imgEl.classList.add('placed');
+                });
+            }
 
             container.canvasState.isEraser = false;
             container.canvasState.currentShape = null;
@@ -4360,15 +4541,23 @@
             if (!overlay || !bakeBtn) return;
             const hasSymbols = overlay.querySelectorAll('.draggable-symbol').length > 0;
             const hasImages = overlay.querySelectorAll('.draggable-image').length > 0;
+            const hasUnplacedImages = overlay.querySelectorAll('.draggable-image:not(.placed)').length > 0;
             if (hasSymbols || hasImages) {
                 bakeBtn.classList.add('show');
+                // 根据图片状态更新按钮文案
+                if (hasUnplacedImages || hasSymbols) {
+                    bakeBtn.textContent = '✓ 确认放置';
+                } else {
+                    // 所有图片都已placed，按钮显示"调整图片"
+                    bakeBtn.textContent = '↻ 调整图片';
+                }
             } else {
                 bakeBtn.classList.remove('show');
             }
         }
 
         // 将浮动符号烘焙到canvas
-        function bakeSymbols(containerId) {
+        function bakeSymbols(containerId, skipSave) {
             const overlay = document.getElementById('overlay_' + containerId);
             const canvas = document.getElementById('canvas_' + containerId);
             if (!overlay || !canvas) return;
@@ -4400,14 +4589,16 @@
                 ctx.restore();
             });
 
-            // 清空overlay
-            overlay.innerHTML = '';
+            // 只移除符号元素，保留图片等浮动元素
+            symbols.forEach(symEl => symEl.remove());
             updateBakeBtn(containerId);
 
-            // 保存图像
-            const type = containerId.match(/^(wrong|analysis|correct)/)[1];
-            const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
-            saveCanvasImage(containerId, type, errId);
+            // 保存图像（skipSave为true时跳过，由调用方负责保存）
+            if (!skipSave) {
+                const type = containerId.match(/^(wrong|analysis|correct)/)[1];
+                const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
+                saveCanvasImage(containerId, type, errId);
+            }
         }
 
         // ============================================
@@ -4533,7 +4724,7 @@
             });
         }
 
-        function doExportPDF(dataToExport) {
+        async function doExportPDF(dataToExport) {
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0];
             const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
@@ -4549,20 +4740,27 @@
                     renderErrorCard(err.id);
                 }
             });
-            // 等canvas初始化完成后再截图
-            setTimeout(() => {
-                const canvasImages = {};
-                dataToExport.forEach(err => {
-                    canvasImages[err.id] = {};
-                    ['wrong', 'analysis', 'correct'].forEach(type => {
-                        const canvasEl = document.getElementById('canvas_' + type + '_' + err.id);
-                        if (canvasEl) {
+            // 等canvas初始化和背景图片加载完成后再截图
+            // 使用更长的等待时间，确保所有canvas（含异步加载的背景图）完成渲染
+            await new Promise(r => setTimeout(r, 800));
+            // 再等一帧确保DOM更新
+            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => requestAnimationFrame(r));
+
+            const canvasImages = {};
+            dataToExport.forEach(err => {
+                canvasImages[err.id] = {};
+                ['wrong', 'analysis', 'correct', 'topic'].forEach(type => {
+                    const canvasEl = document.getElementById('canvas_' + type + '_' + err.id);
+                    if (canvasEl) {
+                        // 检查canvas是否为空（宽高为0或没有内容）
+                        if (canvasEl.width > 0 && canvasEl.height > 0) {
                             canvasImages[err.id][type] = canvasEl.toDataURL('image/png');
                         }
-                    });
+                    }
                 });
-                openPrintWindow(docTitle, dataToExport, canvasImages);
-            }, 300);
+            });
+            openPrintWindow(docTitle, dataToExport, canvasImages);
         }
 
         function openPrintWindow(docTitle, filteredData, canvasImages) {
@@ -4571,40 +4769,39 @@
             let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${docTitle}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-@page{margin:12mm 10mm;size:A4;}
-body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;color:#333;background:#FFF8E7;line-height:1.5;font-size:12px;}
-.err-page{page-break-after:always;padding-bottom:10px;position:relative;padding-left:36px;}
+@page{margin:8mm 10mm;size:A4;}
+body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;color:#333;background:#fff;line-height:1.4;font-size:11px;}
+/* 每页容器 - 两个错题各占一半 */
+.err-page{page-break-after:always;height:100vh;display:flex;flex-direction:column;position:relative;padding-left:30px;overflow:hidden;}
 .err-page:last-child{page-break-after:auto;}
 /* 装订线 */
-.err-page::before{content:'';position:absolute;left:32px;top:0;bottom:0;width:2px;background:#CC4444;opacity:0.4;}
-/* 打孔装饰 */
-.err-page::after{content:'';position:absolute;left:6px;top:24px;width:16px;height:16px;border-radius:50%;border:2px solid #CCC;background:#FFF8E7;box-shadow:0 70px 0 0 #FFF8E7,0 70px 0 0 2px #CCC,0 140px 0 0 #FFF8E7,0 140px 0 0 2px #CCC;}
-.page-header{display:flex;justify-content:space-between;align-items:center;padding:6px 0 10px;border-bottom:2px solid #4a4a4a;margin-bottom:12px;}
-.page-header h2{font-size:18px;color:#4a4a4a;letter-spacing:2px;}
-.page-header .header-date{font-size:11px;color:#999;}
-.meta-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px;font-size:12px;padding-bottom:6px;border-bottom:1px dashed #ddd;}
-.meta-item{display:flex;align-items:center;gap:4px;}
-.meta-label{color:#999;}
-.meta-val{font-weight:600;}
-.stars-print{color:#F39C12;letter-spacing:1px;font-size:14px;}
-.tags{display:flex;gap:4px;flex-wrap:wrap;}
-.tag{background:#f5f0e6;color:#8b6914;padding:1px 8px;border-radius:8px;font-size:11px;}
-.section-title{font-size:14px;font-weight:700;padding:6px 0;margin:10px 0 8px;border-bottom:2px solid #d4c4a8;display:flex;align-items:center;gap:6px;}
-.section-title.orange{color:#b8860b;}
-.section-title.green{color:#1a7a4a;}
-.sub-title{font-size:12px;font-weight:600;margin:6px 0 4px;padding-left:8px;border-left:3px solid #ccc;}
-.sub-title.wrong-t{border-left-color:#E74C3C;color:#c0392b;}
-.sub-title.analysis-t{border-left-color:#F39C12;color:#b8860b;}
-.sub-title.correct-t{border-left-color:#2980B9;color:#2980B9;}
-.canvas-print{border:1px solid #d4c4a8;border-radius:2px;overflow:hidden;background:#fff;}
-.canvas-print img{width:100%;display:block;}
-.empty-hint{padding:20px;text-align:center;color:#ccc;font-size:11px;}
-.wrong-area{margin-bottom:8px;}
-.wrong-area .canvas-print img{max-height:360px;object-fit:contain;}
-.two-col{display:flex;gap:12px;}
-.two-col .col{flex:1;min-width:0;}
-.two-col .canvas-print img{max-height:260px;object-fit:contain;}
-.divider{border:none;border-top:1px dashed #d4c4a8;margin:8px 0;}
+.err-page::before{content:'';position:absolute;left:26px;top:0;bottom:0;width:2px;background:#CC4444;opacity:0.4;}
+/* 错题项 - 占页面一半 */
+.err-item{flex:1;display:flex;flex-direction:column;padding:6px 0;border-bottom:1px dashed #d4c4a8;}
+.err-item:last-child{border-bottom:none;}
+/* 基础信息栏 */
+.err-header{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:4px 0 4px;font-size:12px;border-bottom:1px solid #eee;margin-bottom:4px;}
+.err-header .hi{color:#999;margin-right:4px;white-space:nowrap;}
+.err-header .hi::after{content:'：';}
+.err-header .hv{font-weight:600;color:#333;white-space:nowrap;}
+.err-header .stars-print{color:#F39C12;font-size:14px;}
+.err-header .tag{background:#f5f0e6;color:#8b6914;padding:1px 6px;border-radius:8px;font-size:11px;}
+/* 主体布局：上20%知识点(左)+错因(右) + 下80%原题+改题并排 */
+.err-body{display:flex;flex-direction:column;flex:1;min-height:0;gap:4px;}
+.err-top{flex:2;display:flex;min-height:0;gap:6px;}
+.err-top .spacer{flex:3;min-width:0;display:flex;flex-direction:column;padding:4px 6px;}
+.err-top .spacer .sub-title{font-size:11px;font-weight:600;margin:0 0 2px;padding-left:4px;border-left:2px solid #7B1FA2;color:#7B1FA2;}
+.err-top .spacer .topic-content{font-size:11px;color:#333;line-height:1.3;}
+.err-top .analysis-area{flex:7;min-width:0;display:flex;flex-direction:column;}
+.err-bottom{flex:8;display:flex;min-height:0;gap:6px;}
+.err-left{flex:3;min-width:0;display:flex;flex-direction:column;}
+.err-bottom-right{flex:7;min-width:0;display:flex;flex-direction:column;}
+.err-left .sub-title{font-size:12px;font-weight:600;margin:2px 0 2px;padding-left:6px;border-left:3px solid #E74C3C;color:#c0392b;}
+.err-top .analysis-area .sub-title{font-size:11px;font-weight:600;margin:1px 0 1px;padding-left:4px;border-left:2px solid #F39C12;color:#b8860b;}
+.err-bottom-right .sub-title{font-size:11px;font-weight:600;margin:1px 0 1px;padding-left:4px;border-left:2px solid #2980B9;color:#2980B9;}
+.canvas-print{border:1px solid #d4c4a8;border-radius:2px;overflow:hidden;background:#fff;flex:1;height:100%;display:flex;align-items:center;justify-content:center;}
+.canvas-print img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
+.empty-hint{padding:8px;text-align:center;color:#ccc;font-size:9px;}
 </style></head><body>`;
 
             filteredData.forEach((err, idx) => {
@@ -4612,74 +4809,184 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
                 const errorTags = (err.error_types || []).map(t => `<span class="tag">${t}</span>`).join('');
                 const otherReason = err.error_types && err.error_types.includes('其他原因') && err.other_reason ? `<span class="tag">${err.other_reason}</span>` : '';
 
-                // 取canvas图片：优先用当前画布截图，其次用保存的数据
                 const wrongImg = canvasImages[err.id]?.wrong || err.wrong_answer_image || '';
                 const analysisImg = canvasImages[err.id]?.analysis || err.analysis_image || '';
                 const correctImg = canvasImages[err.id]?.correct || err.correct_solution_image || '';
+                const topicImg = canvasImages[err.id]?.topic || err.topic_image || '';
 
-                html += `<div class="err-page">`;
+                // 每页两个错题，偶数索引开始新页
+                if (idx % 2 === 0) {
+                    html += `<div class="err-page">`;
+                }
 
-                // 页面标题
-                html += `<div class="page-header"><h2>📋 错题本</h2><span class="header-date">${err.date || ''} | ${err.subject || ''}</span></div>`;
+                html += `<div class="err-item">`;
 
-                // 元信息
-                html += `<div class="meta-row">
-                    <div class="meta-item"><span class="meta-label">日期</span><span class="meta-val">${err.date || '-'}</span></div>
-                    <div class="meta-item"><span class="meta-label">科目</span><span class="meta-val">${err.subject || '-'}</span></div>
-                    <div class="meta-item"><span class="meta-label">来源</span><span class="meta-val">${err.source || '-'}</span></div>
-                    <div class="meta-item"><span class="meta-label">重要</span><span class="stars-print">${stars}</span></div>
-                </div>`;
+                // 基础信息栏（紧凑一行）
+                html += `<div class="err-header">`;
+                html += `<span><span class="hi">日期</span> <span class="hv">${err.date || '-'}</span></span>`;
+                html += `<span><span class="hi">科目</span> <span class="hv">${err.subject || '-'}</span></span>`;
+                html += `<span><span class="hi">来源</span> <span class="hv">${err.source || '-'}</span></span>`;
+                html += `<span><span class="hi">重要</span> <span class="stars-print">${stars}</span></span>`;
                 if (err.error_types && err.error_types.length > 0) {
-                    html += `<div style="margin-bottom:6px;font-size:12px;"><span class="meta-label">错因</span> <div class="tags" style="display:inline-flex;gap:4px;">${errorTags}${otherReason}</div></div>`;
+                    html += `<span><span class="hi">错因</span> ${errorTags}${otherReason}</span>`;
                 }
-                if (err.topic) {
-                    html += `<div style="margin-bottom:8px;font-size:12px;"><span class="meta-label">知识点</span> <span class="meta-val">${err.topic}</span></div>`;
-                }
+                html += `</div>`;
 
-                // 题目 & 错题（占上半大部分）
-                html += `<div class="section-title orange">📝 题目 & 错题</div>`;
-                html += `<div class="wrong-area">`;
-                html += `<div class="sub-title wrong-t">❌ 错题区</div>`;
+                // 主体：上20%错因(仅右侧) + 下80%原题+改题并排
+                html += `<div class="err-body">`;
+
+                // 上排：左边知识点 + 右边错因(20%)
+                html += `<div class="err-top">`;
+                html += `<div class="spacer">`;
+                html += `<div class="sub-title topic-t">📖 知识点</div>`;
+                if (topicImg) {
+                    html += `<div class="canvas-print" style="flex:1;"><img src="${topicImg}" /></div>`;
+                } else if (err.topic) {
+                    html += `<div class="topic-content">${err.topic}</div>`;
+                }
+                html += `</div>`;
+                html += `<div class="analysis-area">`;
+                html += `<div class="sub-title">🔍 错因</div>`;
+                html += `<div class="canvas-print">`;
+                if (analysisImg) {
+                    html += `<img src="${analysisImg}" />`;
+                } else {
+                    html += `<div class="empty-hint">（未上传）</div>`;
+                }
+                html += `</div></div></div>`;
+
+                // 下排：左原题(30%) + 右改题(70%)
+                html += `<div class="err-bottom">`;
+                html += `<div class="err-left">`;
+                html += `<div class="sub-title">❌ 错题区</div>`;
                 html += `<div class="canvas-print">`;
                 if (wrongImg) {
                     html += `<img src="${wrongImg}" />`;
                 } else {
-                    html += `<div class="empty-hint">（无内容）</div>`;
+                    html += `<div class="empty-hint">（未上传）</div>`;
                 }
                 html += `</div></div>`;
-
-                html += `<hr class="divider">`;
-
-                // 解析 & 正解（下半部分左右并排）
-                html += `<div class="section-title green">💡 解析 & 正解</div>`;
-                html += `<div class="two-col">`;
-                html += `<div class="col"><div class="sub-title analysis-t">🔍 错因分析</div><div class="canvas-print">`;
-                if (analysisImg) {
-                    html += `<img src="${analysisImg}" />`;
-                } else {
-                    html += `<div class="empty-hint">（无内容）</div>`;
-                }
-                html += `</div></div>`;
-                html += `<div class="col"><div class="sub-title correct-t">✅ 正确解答</div><div class="canvas-print">`;
+                html += `<div class="err-bottom-right">`;
+                html += `<div class="sub-title">✅ 改题</div>`;
+                html += `<div class="canvas-print">`;
                 if (correctImg) {
                     html += `<img src="${correctImg}" />`;
                 } else {
-                    html += `<div class="empty-hint">（无内容）</div>`;
+                    html += `<div class="empty-hint">（未上传）</div>`;
                 }
-                html += `</div></div>`;
-                html += `</div>`;
-                html += `</div>`;
+                html += `</div></div></div>`;
+
+                html += `</div>`; // err-body
+                html += `</div>`; // err-item
+
+                // 奇数索引（第二个错题）或最后一个：关闭页面
+                if (idx % 2 === 1 || idx === filteredData.length - 1) {
+                    html += `</div>`;
+                }
             });
 
             html += `</body></html>`;
 
-            // 用隐藏iframe打印
+            // 使用 html2canvas + jsPDF 直接生成PDF文件
+            generatePDF(html, docTitle);
+        }
+
+        async function generatePDF(htmlContent, docTitle) {
+            // 显示加载提示
+            const loading = document.createElement('div');
+            loading.id = 'pdfLoading';
+            loading.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:99999;color:#fff;font-size:18px;border-radius:0;';
+            loading.innerHTML = '<div style="text-align:center;"><div style="font-size:24px;margin-bottom:12px;">⏳</div><div>正在生成PDF...</div></div>';
+            document.body.appendChild(loading);
+
+            try {
+                // 解析HTML获取页面内容
+                const parser = new DOMParser();
+                const parsedDoc = parser.parseFromString(htmlContent, 'text/html');
+                const pages = parsedDoc.querySelectorAll('.err-page');
+                const pageStyles = parsedDoc.querySelector('style');
+
+                // A4 参数（120 DPI）
+                const PAGE_W = 1077;
+                const PAGE_H = 1528;
+                const MARGIN_PX = 61;
+                const CONTENT_W = PAGE_W - 2 * MARGIN_PX;
+                const scale = 2;
+
+                // 创建离屏渲染容器
+                const container = document.createElement('div');
+                container.id = 'pdfRenderContainer';
+                container.style.cssText = `position:absolute;left:-9999px;top:0;width:${PAGE_W}px;height:${PAGE_H}px;overflow:hidden;background:#fff;font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;`;
+                document.body.appendChild(container);
+
+                // 注入样式
+                if (pageStyles) {
+                    const styleEl = document.createElement('style');
+                    styleEl.textContent = pageStyles.textContent;
+                    container.appendChild(styleEl);
+                }
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+                for (let i = 0; i < pages.length; i++) {
+                    // 清空容器（保留样式）
+                    const existing = container.querySelector('.err-page');
+                    if (existing) container.removeChild(existing);
+
+                    // 克隆当前页到容器
+                    const pageClone = pages[i].cloneNode(true);
+                    // 移除page-break（不需要了）
+                    pageClone.style.pageBreakAfter = 'auto';
+                    container.appendChild(pageClone);
+
+                    // 等待渲染
+                    await new Promise(r => setTimeout(r, 300));
+
+                    // html2canvas 截图
+                    const canvas = await html2canvas(container, {
+                        width: PAGE_W,
+                        height: PAGE_H,
+                        scale: scale,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff',
+                        logging: false
+                    });
+
+                    // 添加到PDF
+                    if (i > 0) pdf.addPage();
+                    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+
+                    // 更新进度
+                    loading.querySelector('div > div:last-child').textContent = `正在生成PDF... (${i + 1}/${pages.length})`;
+                }
+
+                // 保存PDF
+                pdf.save(`${docTitle}.pdf`);
+            } catch (err) {
+                console.error('PDF生成失败:', err);
+                alert('PDF生成失败: ' + err.message + '\n将使用浏览器打印方式导出');
+                // 回退到浏览器打印
+                fallbackPrint(htmlContent, docTitle);
+            } finally {
+                // 清理
+                const c = document.getElementById('pdfRenderContainer');
+                if (c) c.remove();
+                const l = document.getElementById('pdfLoading');
+                if (l) l.remove();
+            }
+        }
+
+        // 备用方案：浏览器打印
+        function fallbackPrint(htmlContent, docTitle) {
             const iframe = document.createElement('iframe');
             iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
             document.body.appendChild(iframe);
             const doc = iframe.contentWindow.document;
             doc.open();
-            doc.write(html);
+            doc.write(htmlContent);
             doc.close();
             iframe.onload = function() {
                 setTimeout(() => {
@@ -4762,32 +5069,37 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
         });
 
         // ============================================
-        // bakeAll - 烘焙所有浮动内容（符号+图片）到canvas
+        // bakeAll - 确认放置：隐藏图片手柄，烘焙符号
+        // 图片仍为浮动图层，点击可重新激活编辑
+        // 当所有图片都已placed时，点击按钮重新激活所有图片编辑
         // ============================================
         function bakeAll(containerId) {
             const overlay = document.getElementById('overlay_' + containerId);
-            const canvas = document.getElementById('canvas_' + containerId);
-            if (!overlay || !canvas) return;
+            if (!overlay) return;
 
             const container = document.getElementById(containerId);
             if (!container || !container.canvasState) return;
 
-            // 先烘焙图片
-            bakeImages(containerId);
+            const unplacedImages = overlay.querySelectorAll('.draggable-image:not(.placed)');
+            const placedImages = overlay.querySelectorAll('.draggable-image.placed');
 
-            // 再烘焙符号
-            bakeSymbols(containerId);
+            if (unplacedImages.length > 0 || overlay.querySelectorAll('.draggable-symbol').length > 0) {
+                // 有未放置的图片或符号：确认放置模式
+                // 烘焙符号（符号仍真正烘焙到canvas），跳过自动保存
+                bakeSymbols(containerId, true);
 
-            // 确保清除所有浮动元素
-            overlay.innerHTML = '';
-            updateBakeBtn(containerId);
-
-            // 保存图像
-            const type = containerId.match(/^(wrong|analysis|correct)/)?.[1];
-            const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
-            if (type && errId) {
-                saveCanvasImage(containerId, type, errId);
+                // 图片不烘焙，改为标记已放置状态（隐藏手柄和边框）
+                unplacedImages.forEach(function(imgEl) {
+                    imgEl.classList.add('placed');
+                });
+            } else if (placedImages.length > 0) {
+                // 所有图片都已placed：重新激活编辑
+                placedImages.forEach(function(imgEl) {
+                    imgEl.classList.remove('placed');
+                });
             }
+
+            updateBakeBtn(containerId);
         }
 
         // ============================================
@@ -4870,13 +5182,7 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
             // 移除已烘焙的图片元素
             imagesToRemove.forEach(el => el.remove());
             updateBakeBtn(containerId);
-
-            // 保存
-            const type = containerId.match(/^(wrong|analysis|correct)/)?.[1];
-            const errId = containerId.replace(/^(wrong_|analysis_|correct_)/, '');
-            if (type && errId) {
-                saveCanvasImage(containerId, type, errId);
-            }
+            // 注意：不再在此处调用 saveCanvasImage，由 saveCanvasImage 调用 bakeImages 后自行保存
         }
 
         // ============================================
@@ -5068,30 +5374,38 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
             // 图片加载后设置初始大小和位置
             img.onload = function() {
                 const canvasRect = canvas.getBoundingClientRect();
-                // 获取缩放状态
                 const zoomLayer = document.getElementById('zoomlayer_' + containerId);
                 let zoomScale = 1;
                 if (zoomLayer && zoomLayer._zoomState) {
                     zoomScale = zoomLayer._zoomState.scale;
                 }
 
-                // 初始大小：适配画布的50%宽度
-                const maxW = (canvasRect.width / zoomScale) * 0.5;
+                const canvasW = canvasRect.width / zoomScale;
+                const canvasH = canvasRect.height / zoomScale;
                 const ratio = img.naturalHeight / img.naturalWidth;
-                let displayW = Math.min(img.naturalWidth, maxW);
+
+                // 自适应：让整张图完全显示在canvas内
+                const fitW = canvasW * 0.8;
+                const fitH = canvasH * 0.8;
+                let displayW = Math.min(img.naturalWidth, fitW);
                 let displayH = displayW * ratio;
+                if (displayH > fitH) {
+                    displayH = fitH;
+                    displayW = displayH / ratio;
+                }
 
                 imgWrap.style.width = displayW + 'px';
                 imgWrap.style.height = displayH + 'px';
 
                 // 居中放置
-                const startX = (canvasRect.width / zoomScale - displayW) / 2;
-                const startY = (canvasRect.height / zoomScale - displayH) / 2;
+                const startX = (canvasW - displayW) / 2;
+                const startY = (canvasH - displayH) / 2;
                 imgWrap.style.left = startX + 'px';
                 imgWrap.style.top = startY + 'px';
 
-                // 存储原始尺寸
                 imgWrap._imgScale = 1;
+                imgWrap._initialW = displayW;
+                imgWrap._initialH = displayH;
                 imgWrap._rotation = 0;
             };
 
@@ -5117,6 +5431,17 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
             });
             imgWrap.appendChild(delBtn);
 
+            // 裁切按钮
+            const cropBtn = document.createElement('button');
+            cropBtn.className = 'img-crop-btn';
+            cropBtn.textContent = '✂';
+            cropBtn.addEventListener('pointerdown', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                enterCropMode(containerId, imgWrap, img);
+            });
+            imgWrap.appendChild(cropBtn);
+
             // 旋转连线
             const rotateLine = document.createElement('div');
             rotateLine.className = 'img-rotate-line';
@@ -5133,6 +5458,50 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
             });
             imgWrap.appendChild(rotateHandle);
 
+            // 缩放手柄（右下角）
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'img-resize-handle';
+            resizeHandle.textContent = '⤡';
+            resizeHandle.addEventListener('pointerdown', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startW = imgWrap.offsetWidth;
+                const startH = imgWrap.offsetHeight;
+                const aspectRatio = startW / startH;
+
+                function onResizeMove(ev) {
+                    ev.preventDefault();
+                    const dx = ev.clientX - startX;
+                    // 等比缩放：以宽度变化为基准
+                    let newW = startW + dx;
+                    let newH = newW / aspectRatio;
+                    // 最小尺寸限制
+                    if (newW < 30) { newW = 30; newH = newW / aspectRatio; }
+                    if (newH < 30) { newH = 30; newW = newH * aspectRatio; }
+
+                    imgWrap.style.width = newW + 'px';
+                    imgWrap.style.height = newH + 'px';
+
+                    // 更新 _imgScale
+                    const initialW = imgWrap._initialW || startW;
+                    const initialH = imgWrap._initialH || startH;
+                    imgWrap._imgScale = newW / initialW;
+                }
+
+                function onResizeEnd(ev) {
+                    document.removeEventListener('pointermove', onResizeMove);
+                    document.removeEventListener('pointerup', onResizeEnd);
+                    document.removeEventListener('pointercancel', onResizeEnd);
+                }
+
+                document.addEventListener('pointermove', onResizeMove);
+                document.addEventListener('pointerup', onResizeEnd);
+                document.addEventListener('pointercancel', onResizeEnd);
+            });
+            imgWrap.appendChild(resizeHandle);
+
             // ---- 拖动 + 双指缩放 ----
             let isDragging = false;
             let dragOffsetX = 0, dragOffsetY = 0;
@@ -5141,7 +5510,17 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
             let imgInitialScale = 1;
 
             imgWrap.addEventListener('pointerdown', function(e) {
-                if (e.target === delBtn || e.target === rotateHandle) return;
+                if (e.target === delBtn || e.target === rotateHandle || e.target === resizeHandle || e.target === cropBtn) return;
+                // 裁切模式下禁止拖动
+                if (imgWrap._cropBlockDrag) return;
+
+                // 如果图片处于已放置状态，点击重新激活编辑
+                if (imgWrap.classList.contains('placed')) {
+                    imgWrap.classList.remove('placed');
+                    updateBakeBtn(containerId);
+                    // 不阻止后续拖动，让用户可以立即操作
+                }
+
                 e.stopPropagation();
                 e.preventDefault();
 
@@ -5198,18 +5577,11 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
 
                     imgWrap._imgScale = newScale;
 
-                    // 更新图片大小（基于原始图片尺寸）
-                    const baseW = img.naturalWidth;
-                    const baseH = img.naturalHeight;
-                    // 计算初始适配大小
-                    const canvasRect = canvas.getBoundingClientRect();
-                    const zoomLayer2 = document.getElementById('zoomlayer_' + containerId);
-                    let zs2 = 1;
-                    if (zoomLayer2 && zoomLayer2._zoomState) zs2 = zoomLayer2._zoomState.scale;
-                    const maxW = (canvasRect.width / zs2) * 0.5;
-                    const fitScale = Math.min(1, maxW / baseW);
-                    const displayW = baseW * fitScale * newScale;
-                    const displayH = baseH * fitScale * newScale;
+                    // 更新图片大小（基于初始适配尺寸）
+                    const initialW = imgWrap._initialW || imgWrap.offsetWidth;
+                    const initialH = imgWrap._initialH || imgWrap.offsetHeight;
+                    const displayW = initialW * newScale;
+                    const displayH = initialH * newScale;
 
                     imgWrap.style.width = displayW + 'px';
                     imgWrap.style.height = displayH + 'px';
@@ -5235,6 +5607,244 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
 
             overlay.appendChild(imgWrap);
             updateBakeBtn(containerId);
+        }
+
+        // ============================================
+        // 裁切模式 - enterCropMode / exitCropMode / performCrop
+        // ============================================
+        function enterCropMode(containerId, imgWrap, img) {
+            // 如果已经在裁切模式，不重复进入
+            if (imgWrap._cropMode) return;
+            imgWrap._cropMode = true;
+
+            // 禁用拖动
+            imgWrap._wasDragging = imgWrap.style.cursor;
+            imgWrap.style.cursor = 'default';
+            imgWrap.style.userSelect = 'none';
+
+            // 隐藏原有工具按钮
+            const delBtn = imgWrap.querySelector('.img-delete');
+            const cropBtn = imgWrap.querySelector('.img-crop-btn');
+            const rotateHandle = imgWrap.querySelector('.img-rotate-handle');
+            const rotateLine = imgWrap.querySelector('.img-rotate-line');
+            const resizeHandle = imgWrap.querySelector('.img-resize-handle');
+            if (delBtn) delBtn.style.display = 'none';
+            if (cropBtn) cropBtn.style.display = 'none';
+            if (rotateHandle) rotateHandle.style.display = 'none';
+            if (rotateLine) rotateLine.style.display = 'none';
+            if (resizeHandle) resizeHandle.style.display = 'none';
+
+            // 记录当前尺寸
+            const wrapW = imgWrap.offsetWidth;
+            const wrapH = imgWrap.offsetHeight;
+
+            // 裁切区域（初始为全图）
+            let cropRect = { left: 0, top: 0, right: wrapW, bottom: wrapH };
+
+            // 创建遮罩容器
+            const maskContainer = document.createElement('div');
+            maskContainer.className = 'crop-overlay';
+            const masks = {};
+            ['top','bottom','left','right'].forEach(function(pos) {
+                const m = document.createElement('div');
+                m.className = 'crop-overlay-mask';
+                masks[pos] = m;
+                maskContainer.appendChild(m);
+            });
+            imgWrap.appendChild(maskContainer);
+
+            // 创建8个手柄
+            const handles = {};
+            const positions = ['top-left','top-right','bottom-left','bottom-right','top-center','bottom-center','left-center','right-center'];
+            positions.forEach(function(pos) {
+                const h = document.createElement('div');
+                h.className = 'crop-handle ' + pos;
+                // 清除CSS默认定位，改用JS控制
+                h.style.top = '';
+                h.style.left = '';
+                h.style.right = '';
+                h.style.bottom = '';
+                h.style.transform = '';
+                handles[pos] = h;
+                imgWrap.appendChild(h);
+
+                h.addEventListener('pointerdown', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    h.setPointerCapture(e.pointerId);
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    const startRect = { left: cropRect.left, top: cropRect.top, right: cropRect.right, bottom: cropRect.bottom };
+
+                    function onMove(ev) {
+                        ev.preventDefault();
+                        const zoomLayer = document.getElementById('zoomlayer_' + containerId);
+                        let zoomScale = 1;
+                        if (zoomLayer && zoomLayer._zoomState) zoomScale = zoomLayer._zoomState.scale;
+
+                        const dx = (ev.clientX - startX) / zoomScale;
+                        const dy = (ev.clientY - startY) / zoomScale;
+
+                        // 根据手柄位置更新cropRect
+                        if (pos === 'top-left' || pos === 'left-center' || pos === 'bottom-left') {
+                            cropRect.left = Math.max(0, Math.min(cropRect.right - 20, startRect.left + dx));
+                        }
+                        if (pos === 'top-right' || pos === 'right-center' || pos === 'bottom-right') {
+                            cropRect.right = Math.min(wrapW, Math.max(cropRect.left + 20, startRect.right + dx));
+                        }
+                        if (pos === 'top-left' || pos === 'top-center' || pos === 'top-right') {
+                            cropRect.top = Math.max(0, Math.min(cropRect.bottom - 20, startRect.top + dy));
+                        }
+                        if (pos === 'bottom-left' || pos === 'bottom-center' || pos === 'bottom-right') {
+                            cropRect.bottom = Math.min(wrapH, Math.max(cropRect.top + 20, startRect.bottom + dy));
+                        }
+
+                        updateMasks();
+                    }
+
+                    function onUp() {
+                        h.removeEventListener('pointermove', onMove);
+                        h.removeEventListener('pointerup', onUp);
+                        h.removeEventListener('pointercancel', onUp);
+                    }
+
+                    h.addEventListener('pointermove', onMove);
+                    h.addEventListener('pointerup', onUp);
+                    h.addEventListener('pointercancel', onUp);
+                });
+            });
+
+            // 更新遮罩位置
+            function updateMasks() {
+                const baseHandleStyle = 'position:absolute; width:16px; height:16px; background:#9B59B6; border:2px solid white; border-radius:2px; z-index:12; pointer-events:auto; touch-action:none; right:auto; bottom:auto;';
+                // 上方遮罩
+                masks.top.style.cssText = 'position:absolute; left:0; top:0; width:' + wrapW + 'px; height:' + cropRect.top + 'px; background:rgba(0,0,0,0.5);';
+                // 下方遮罩
+                masks.bottom.style.cssText = 'position:absolute; left:0; top:' + cropRect.bottom + 'px; width:' + wrapW + 'px; height:' + (wrapH - cropRect.bottom) + 'px; background:rgba(0,0,0,0.5);';
+                // 左方遮罩
+                masks.left.style.cssText = 'position:absolute; left:0; top:' + cropRect.top + 'px; width:' + cropRect.left + 'px; height:' + (cropRect.bottom - cropRect.top) + 'px; background:rgba(0,0,0,0.5);';
+                // 右方遮罩
+                masks.right.style.cssText = 'position:absolute; left:' + cropRect.right + 'px; top:' + cropRect.top + 'px; width:' + (wrapW - cropRect.right) + 'px; height:' + (cropRect.bottom - cropRect.top) + 'px; background:rgba(0,0,0,0.5);';
+
+                // 更新手柄位置（用绝对像素定位，right/bottom设为auto防止CSS类样式冲突）
+                handles['top-left'].style.cssText = baseHandleStyle + 'cursor:nwse-resize; top:' + (cropRect.top - 8) + 'px; left:' + (cropRect.left - 8) + 'px;';
+                handles['top-right'].style.cssText = baseHandleStyle + 'cursor:nesw-resize; top:' + (cropRect.top - 8) + 'px; left:' + (cropRect.right - 8) + 'px;';
+                handles['bottom-left'].style.cssText = baseHandleStyle + 'cursor:nesw-resize; top:' + (cropRect.bottom - 8) + 'px; left:' + (cropRect.left - 8) + 'px;';
+                handles['bottom-right'].style.cssText = baseHandleStyle + 'cursor:nwse-resize; top:' + (cropRect.bottom - 8) + 'px; left:' + (cropRect.right - 8) + 'px;';
+                handles['top-center'].style.cssText = baseHandleStyle + 'cursor:ns-resize; top:' + (cropRect.top - 8) + 'px; left:' + ((cropRect.left + cropRect.right) / 2 - 8) + 'px;';
+                handles['bottom-center'].style.cssText = baseHandleStyle + 'cursor:ns-resize; top:' + (cropRect.bottom - 8) + 'px; left:' + ((cropRect.left + cropRect.right) / 2 - 8) + 'px;';
+                handles['left-center'].style.cssText = baseHandleStyle + 'cursor:ew-resize; top:' + ((cropRect.top + cropRect.bottom) / 2 - 8) + 'px; left:' + (cropRect.left - 8) + 'px;';
+                handles['right-center'].style.cssText = baseHandleStyle + 'cursor:ew-resize; top:' + ((cropRect.top + cropRect.bottom) / 2 - 8) + 'px; left:' + (cropRect.right - 8) + 'px;';
+            }
+
+            // 更新遮罩初始状态
+            updateMasks();
+
+            // 确认/取消按钮
+            const confirmBar = document.createElement('div');
+            confirmBar.className = 'crop-confirm-bar';
+            confirmBar.innerHTML = '<button class="crop-confirm-btn">✓ 确认裁切</button><button class="crop-cancel-btn">✕ 取消</button>';
+            imgWrap.appendChild(confirmBar);
+
+            confirmBar.querySelector('.crop-cancel-btn').addEventListener('pointerdown', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                exitCropMode(imgWrap, maskContainer, handles, confirmBar);
+            });
+
+            confirmBar.querySelector('.crop-confirm-btn').addEventListener('pointerdown', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                performCrop(containerId, imgWrap, img, cropRect, maskContainer, handles, confirmBar);
+            });
+
+            // 阻止裁切模式下imgWrap的拖动
+            imgWrap._cropBlockDrag = true;
+        }
+
+        function exitCropMode(imgWrap, maskContainer, handles, confirmBar) {
+            // 移除遮罩
+            if (maskContainer && maskContainer.parentNode) maskContainer.parentNode.removeChild(maskContainer);
+            // 移除手柄
+            Object.keys(handles).forEach(function(key) {
+                if (handles[key] && handles[key].parentNode) handles[key].parentNode.removeChild(handles[key]);
+            });
+            // 移除确认栏
+            if (confirmBar && confirmBar.parentNode) confirmBar.parentNode.removeChild(confirmBar);
+
+            // 恢复原有工具按钮
+            const delBtn = imgWrap.querySelector('.img-delete');
+            const cropBtn = imgWrap.querySelector('.img-crop-btn');
+            const rotateHandle = imgWrap.querySelector('.img-rotate-handle');
+            const rotateLine = imgWrap.querySelector('.img-rotate-line');
+            const resizeHandle = imgWrap.querySelector('.img-resize-handle');
+            if (delBtn) delBtn.style.display = '';
+            if (cropBtn) cropBtn.style.display = '';
+            if (rotateHandle) rotateHandle.style.display = '';
+            if (rotateLine) rotateLine.style.display = '';
+            if (resizeHandle) resizeHandle.style.display = '';
+
+            // 恢复拖动
+            imgWrap.style.cursor = imgWrap._wasDragging || 'move';
+            imgWrap._cropMode = false;
+            imgWrap._cropBlockDrag = false;
+        }
+
+        function performCrop(containerId, imgWrap, img, cropRect, maskContainer, handles, confirmBar) {
+            const cropW = cropRect.right - cropRect.left;
+            const cropH = cropRect.bottom - cropRect.top;
+
+            // 如果裁切区域等于全图，直接退出
+            if (cropW >= imgWrap.offsetWidth - 1 && cropH >= imgWrap.offsetHeight - 1) {
+                exitCropMode(imgWrap, maskContainer, handles, confirmBar);
+                return;
+            }
+
+            // 计算img的display size和natural size的映射关系
+            const displayW = imgWrap.offsetWidth;
+            const displayH = imgWrap.offsetHeight;
+            const naturalW = img.naturalWidth;
+            const naturalH = img.naturalHeight;
+
+            // 裁切区域在原图中的对应坐标
+            const sx = (cropRect.left / displayW) * naturalW;
+            const sy = (cropRect.top / displayH) * naturalH;
+            const sw = (cropW / displayW) * naturalW;
+            const sh = (cropH / displayH) * naturalH;
+
+            // 创建临时canvas进行裁切
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = Math.max(1, Math.round(sw));
+            tempCanvas.height = Math.max(1, Math.round(sh));
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(img, sx, sy, sw, sh, 0, 0, tempCanvas.width, tempCanvas.height);
+
+            // 获取裁切后的dataURL
+            const croppedDataUrl = tempCanvas.toDataURL('image/png');
+
+            // 计算裁切后imgWrap的新位置（保持裁切区域在原位）
+            const currentLeft = parseFloat(imgWrap.style.left) || 0;
+            const currentTop = parseFloat(imgWrap.style.top) || 0;
+            const newLeft = currentLeft + cropRect.left;
+            const newTop = currentTop + cropRect.top;
+
+            // 替换图片
+            img.onload = function() {
+                // 更新imgWrap的位置和大小
+                imgWrap.style.left = newLeft + 'px';
+                imgWrap.style.top = newTop + 'px';
+                imgWrap.style.width = cropW + 'px';
+                imgWrap.style.height = cropH + 'px';
+
+                // 重置缩放
+                imgWrap._imgScale = 1;
+                imgWrap._initialW = cropW;
+                imgWrap._initialH = cropH;
+
+                // 退出裁切模式
+                exitCropMode(imgWrap, maskContainer, handles, confirmBar);
+            };
+            img.src = croppedDataUrl;
         }
 
         // 旋转手柄交互
@@ -5266,6 +5876,471 @@ body{font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;col
 
             document.addEventListener('pointermove', onMove);
             document.addEventListener('pointerup', onUp);
+        }
+    </script>
+
+    <!-- GitHub备份设置弹窗 -->
+    <div id="githubSettingsModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+            <h3 style="margin-bottom:16px;color:#333;">☁️ GitHub 云备份设置</h3>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:14px;color:#666;margin-bottom:4px;">GitHub Token (PAT)</label>
+                <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxx" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:14px;color:#666;margin-bottom:4px;">仓库 (owner/repo)</label>
+                <input type="text" id="ghRepoInput" placeholder="zydtxz/cuotiben" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:14px;color:#666;margin-bottom:4px;">分支</label>
+                <input type="text" id="ghBranchInput" placeholder="main" value="main" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button onclick="closeGithubSettings()" style="padding:8px 16px;border:1px solid #ddd;background:#f5f5f5;border-radius:6px;cursor:pointer;">取消</button>
+                <button onclick="saveGithubSettings()" style="padding:8px 16px;border:none;background:#3498DB;color:#fff;border-radius:6px;cursor:pointer;">保存</button>
+            </div>
+            <p style="margin-top:12px;font-size:12px;color:#999;">Token 仅存储在浏览器本地，不会上传到任何服务器。<br>获取 Token: GitHub → Settings → Developer settings → Personal access tokens</p>
+        </div>
+    </div>
+
+    <!-- 备份状态提示 -->
+    <div id="backupToast" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:8px;color:#fff;font-size:14px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:opacity 0.3s;"></div>
+
+    <script>
+        // ============================================
+        // GitHub 云备份功能
+        // ============================================
+        function getGithubConfig() {
+            return {
+                token: localStorage.getItem('ghBackupToken') || '',
+                repo: localStorage.getItem('ghBackupRepo') || '',
+                branch: localStorage.getItem('ghBackupBranch') || 'main'
+            };
+        }
+
+        function showGithubSettings() {
+            const cfg = getGithubConfig();
+            document.getElementById('ghTokenInput').value = cfg.token;
+            document.getElementById('ghRepoInput').value = cfg.repo;
+            document.getElementById('ghBranchInput').value = cfg.branch;
+            document.getElementById('githubSettingsModal').style.display = 'flex';
+        }
+
+        function closeGithubSettings() {
+            document.getElementById('githubSettingsModal').style.display = 'none';
+        }
+
+        function saveGithubSettings() {
+            const token = document.getElementById('ghTokenInput').value.trim();
+            const repo = document.getElementById('ghRepoInput').value.trim();
+            const branch = document.getElementById('ghBranchInput').value.trim() || 'main';
+            if (!token || !repo) {
+                alert('请填写 Token 和仓库地址');
+                return;
+            }
+            localStorage.setItem('ghBackupToken', token);
+            localStorage.setItem('ghBackupRepo', repo);
+            localStorage.setItem('ghBackupBranch', branch);
+            closeGithubSettings();
+            showBackupToast('✅ GitHub 设置已保存', 'success');
+        }
+
+        function showBackupToast(msg, type) {
+            const toast = document.getElementById('backupToast');
+            toast.textContent = msg;
+            toast.style.background = type === 'success' ? '#27AE60' : type === 'error' ? '#E74C3C' : '#3498DB';
+            toast.style.display = 'block';
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => { toast.style.display = 'none'; }, 300);
+            }, 3000);
+        }
+
+        async function githubBackup() {
+            if (errorData.length === 0) {
+                showBackupToast('暂无数据可备份', 'error');
+                return;
+            }
+
+            const cfg = getGithubConfig();
+            if (!cfg.token || !cfg.repo) {
+                showGithubSettings();
+                return;
+            }
+
+            const btn = document.getElementById('githubBackupBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 备份中...';
+            showBackupToast('正在备份到 GitHub...', 'info');
+
+            try {
+                const dataStr = JSON.stringify(errorData, null, 2);
+                const base64Data = btoa(unescape(encodeURIComponent(dataStr)));
+                const now = new Date();
+                const filePath = 'backups/errorbook_latest.json';
+                const apiUrl = 'https://api.github.com/repos/' + cfg.repo + '/contents/' + filePath;
+
+                const headers = {
+                    'Authorization': 'token ' + cfg.token,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                };
+
+                // 获取现有文件的sha（用于覆盖更新）
+                let existingSha = null;
+                try {
+                    const getResp = await fetch(apiUrl + '?ref=' + cfg.branch, {
+                        headers: { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github.v3+json' }
+                    });
+                    if (getResp.ok) {
+                        const getData = await getResp.json();
+                        existingSha = getData.sha;
+                    }
+                } catch(e) {}
+
+                const body = {
+                    message: 'backup: ' + now.toLocaleString('zh-CN'),
+                    content: base64Data,
+                    branch: cfg.branch
+                };
+                if (existingSha) body.sha = existingSha;
+
+                const resp = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: headers,
+                    body: JSON.stringify(body)
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.message || '上传失败');
+                }
+
+                showBackupToast('✅ 备份成功！', 'success');
+
+            } catch (err) {
+                console.error('GitHub backup error:', err);
+                showBackupToast('❌ 备份失败: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '☁️ 云备份';
+            }
+        }
+
+        // 自动备份：每次保存数据时静默备份到GitHub（可选）
+        const _origSaveToStorage = saveToStorage;
+        saveToStorage = function() {
+            _origSaveToStorage();
+            // 静默自动备份（仅当已配置且距上次备份>5分钟）
+            const cfg = getGithubConfig();
+            if (cfg.token && cfg.repo) {
+                const lastAuto = parseInt(localStorage.getItem('ghLastAutoBackup') || '0');
+                const now = Date.now();
+                if (now - lastAuto > 5 * 60 * 1000) {
+                    localStorage.setItem('ghLastAutoBackup', now.toString());
+                    githubBackupSilent();
+                }
+            }
+        };
+
+        async function githubBackupSilent() {
+            try {
+                const cfg = getGithubConfig();
+                if (!cfg.token || !cfg.repo || errorData.length === 0) return;
+
+                const dataStr = JSON.stringify(errorData, null, 2);
+                const base64Data = btoa(unescape(encodeURIComponent(dataStr)));
+                const latestPath = 'backups/errorbook_latest.json';
+                const latestUrl = 'https://api.github.com/repos/' + cfg.repo + '/contents/' + latestPath;
+
+                const headers = {
+                    'Authorization': 'token ' + cfg.token,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                };
+
+                // 获取现有sha
+                let sha = null;
+                try {
+                    const getResp = await fetch(latestUrl + '?ref=' + cfg.branch, {
+                        headers: { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github.v3+json' }
+                    });
+                    if (getResp.ok) {
+                        const getData = await getResp.json();
+                        sha = getData.sha;
+                    }
+                } catch(e) {}
+
+                const body = {
+                    message: 'auto backup ' + new Date().toLocaleString('zh-CN'),
+                    content: base64Data,
+                    branch: cfg.branch
+                };
+                if (sha) body.sha = sha;
+
+                await fetch(latestUrl, {
+                    method: 'PUT',
+                    headers: headers,
+                    body: JSON.stringify(body)
+                });
+                console.log('[AutoBackup] OK');
+            } catch(e) {
+                console.warn('[AutoBackup] Failed:', e.message);
+            }
+        }
+    </script>
+
+    <!-- 错题本设置弹窗 -->
+    <div id="errorBookSettingsModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+            <h3 style="margin-bottom:16px;color:#333;">⚙️ 错题本设置</h3>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:14px;color:#666;margin-bottom:4px;">删除密码</label>
+                <input type="password" id="deletePasswordInput" placeholder="输入新密码" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+                <p style="font-size:12px;color:#999;margin-top:4px;">默认密码：delete123</p>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:14px;color:#666;margin-bottom:4px;">确认密码</label>
+                <input type="password" id="deletePasswordConfirm" placeholder="再次输入新密码" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button onclick="closeErrorBookSettings()" style="padding:8px 16px;border:1px solid #ddd;background:#f5f5f5;border-radius:6px;cursor:pointer;">取消</button>
+                <button onclick="saveDeletePassword()" style="padding:8px 16px;border:none;background:#8B7355;color:#fff;border-radius:6px;cursor:pointer;">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 回收站弹窗 -->
+    <div id="trashModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:12px;padding:24px;max-width:560px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="color:#333;">🗑️ 回收站</h3>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="emptyTrash()" style="padding:6px 12px;border:1px solid #e74c3c;background:#fff;color:#e74c3c;border-radius:6px;cursor:pointer;font-size:13px;">清空回收站</button>
+                    <button onclick="closeTrashModal()" style="padding:6px 12px;border:1px solid #ddd;background:#f5f5f5;border-radius:6px;cursor:pointer;font-size:13px;">关闭</button>
+                </div>
+            </div>
+            <p style="font-size:12px;color:#999;margin-bottom:12px;">删除的错题保留30天，超期自动清理</p>
+            <div id="trashList" style="flex:1;overflow-y:auto;">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // 错题本设置功能
+        // ============================================
+        function showErrorBookSettings() {
+            const modal = document.getElementById('errorBookSettingsModal');
+            modal.style.display = 'flex';
+            // 显示当前密码占位
+            document.getElementById('deletePasswordInput').value = '';
+            document.getElementById('deletePasswordConfirm').value = '';
+        }
+
+        function closeErrorBookSettings() {
+            document.getElementById('errorBookSettingsModal').style.display = 'none';
+        }
+
+        function saveDeletePassword() {
+            const pwd = document.getElementById('deletePasswordInput').value;
+            const confirm = document.getElementById('deletePasswordConfirm').value;
+            if (!pwd) {
+                alert('请输入新密码');
+                return;
+            }
+            if (pwd !== confirm) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+            localStorage.setItem('errorBookDeletePassword', pwd);
+            closeErrorBookSettings();
+            alert('删除密码已更新');
+        }
+
+        // ============================================
+        // 回收站功能
+        // ============================================
+        function loadTrashData() {
+            try {
+                const stored = localStorage.getItem('errorBookTrash');
+                return stored ? JSON.parse(stored) : [];
+            } catch(e) {
+                return [];
+            }
+        }
+
+        function saveTrashData(trashData) {
+            localStorage.setItem('errorBookTrash', JSON.stringify(trashData));
+        }
+
+        // 清理超过30天的回收站数据
+        function cleanExpiredTrash() {
+            const trashData = loadTrashData();
+            const now = Date.now();
+            const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+            const cleaned = trashData.filter(item => {
+                if (!item.deletedAt) return true; // 无删除时间戳的保留
+                return (now - new Date(item.deletedAt).getTime()) < thirtyDays;
+            });
+            if (cleaned.length !== trashData.length) {
+                saveTrashData(cleaned);
+                console.log('[回收站] 已清理 ' + (trashData.length - cleaned.length) + ' 条过期数据');
+            }
+        }
+
+        // 更新回收站数量角标
+        function updateTrashCount() {
+            const trashData = loadTrashData();
+            const countEl = document.getElementById('trashCount');
+            if (countEl) {
+                if (trashData.length > 0) {
+                    countEl.textContent = trashData.length;
+                    countEl.style.display = 'inline';
+                } else {
+                    countEl.style.display = 'none';
+                }
+            }
+        }
+
+        // 格式化时间
+        function formatDateTime(isoStr) {
+            if (!isoStr) return '未知';
+            const d = new Date(isoStr);
+            return d.getFullYear() + '-' + 
+                   String(d.getMonth()+1).padStart(2,'0') + '-' + 
+                   String(d.getDate()).padStart(2,'0') + ' ' + 
+                   String(d.getHours()).padStart(2,'0') + ':' + 
+                   String(d.getMinutes()).padStart(2,'0');
+        }
+
+        // 计算剩余天数
+        function getDaysLeft(deletedAt) {
+            if (!deletedAt) return 30;
+            const diff = 30 * 24 * 60 * 60 * 1000 - (Date.now() - new Date(deletedAt).getTime());
+            return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
+        }
+
+        // 显示回收站弹窗
+        function showTrashModal() {
+            const modal = document.getElementById('trashModal');
+            modal.style.display = 'flex';
+            renderTrashList();
+        }
+
+        function closeTrashModal() {
+            document.getElementById('trashModal').style.display = 'none';
+        }
+
+        // 渲染回收站列表
+        function renderTrashList() {
+            const trashData = loadTrashData();
+            const listEl = document.getElementById('trashList');
+
+            if (trashData.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center;color:#999;padding:40px;font-size:15px;">回收站为空</p>';
+                return;
+            }
+
+            // 按删除时间倒序
+            const sorted = [...trashData].sort((a, b) => 
+                new Date(b.deletedAt || 0) - new Date(a.deletedAt || 0)
+            );
+
+            listEl.innerHTML = sorted.map(item => {
+                const daysLeft = getDaysLeft(item.deletedAt);
+                const daysColor = daysLeft <= 3 ? '#e74c3c' : daysLeft <= 7 ? '#f39c12' : '#999';
+                return `
+                <div style="border:1px solid #e8dcc8;border-radius:8px;padding:12px;margin-bottom:8px;background:#fefcf7;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="background:#8B7355;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;">${item.subject || '未分类'}</span>
+                            <span style="font-size:13px;color:#666;">${item.date || '-'}</span>
+                        </div>
+                        <span style="font-size:11px;color:${daysColor};">剩余${daysLeft}天</span>
+                    </div>
+                    <div style="font-size:13px;color:#999;margin-bottom:4px;">来源：${item.source || '无'} | 知识点：${item.topic || '无'}</div>
+                    <div style="font-size:11px;color:#bbb;">删除时间：${formatDateTime(item.deletedAt)}</div>
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                        <button onclick="restoreError('${item.id}')" style="padding:4px 12px;border:1px solid #27AE60;background:#fff;color:#27AE60;border-radius:4px;cursor:pointer;font-size:12px;">♻️ 恢复</button>
+                        <button onclick="permanentDelete('${item.id}')" style="padding:4px 12px;border:1px solid #e74c3c;background:#fff;color:#e74c3c;border-radius:4px;cursor:pointer;font-size:12px;">❌ 永久删除</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // 恢复错题
+        function restoreError(id) {
+            const trashData = loadTrashData();
+            const item = trashData.find(e => e.id === id);
+            if (!item) {
+                alert('未找到该错题');
+                return;
+            }
+            // 检查是否已存在同ID
+            if (errorData.find(e => e.id === id)) {
+                alert('该错题已存在于主列表中');
+                return;
+            }
+            // 从回收站移除deletedAt字段后恢复
+            delete item.deletedAt;
+            errorData.push(item);
+            saveToStorage();
+            
+            // 从回收站移除
+            const newTrash = trashData.filter(e => e.id !== id);
+            saveTrashData(newTrash);
+            
+            renderErrorList();
+            updateStats();
+            updateTrashCount();
+            renderTrashList();
+            
+            // 渲染恢复的卡片
+            renderErrorCard(id);
+            
+            alert('已恢复');
+        }
+
+        // 永久删除（需密码确认）
+        function permanentDelete(id) {
+            if (!confirm('永久删除后无法恢复，确定要继续吗？')) return;
+            const password = prompt('请输入删除密码：');
+            const deletePwd = localStorage.getItem('errorBookDeletePassword') || 'delete123';
+            if (password === deletePwd) {
+                let trashData = loadTrashData();
+                trashData = trashData.filter(e => e.id !== id);
+                saveTrashData(trashData);
+                updateTrashCount();
+                renderTrashList();
+                alert('已永久删除');
+            } else if (password !== null) {
+                alert('密码错误');
+            }
+        }
+
+        // 清空回收站
+        function emptyTrash() {
+            const trashData = loadTrashData();
+            if (trashData.length === 0) {
+                alert('回收站已为空');
+                return;
+            }
+            if (!confirm(`确定要永久删除回收站中的全部 ${trashData.length} 道错题吗？
+
+此操作不可恢复！`)) return;
+            const password = prompt('请输入删除密码：');
+            const deletePwd = localStorage.getItem('errorBookDeletePassword') || 'delete123';
+            if (password === deletePwd) {
+                saveTrashData([]);
+                updateTrashCount();
+                renderTrashList();
+                alert('回收站已清空');
+            } else if (password !== null) {
+                alert('密码错误');
+            }
         }
     </script>
 </body>
